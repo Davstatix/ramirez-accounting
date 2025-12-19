@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { PRICING_PLANS, PlanId } from '@/lib/stripe'
-import { createClient } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase-server'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     const plan = PRICING_PLANS[planId as PlanId]
 
     // Get client info
-    const supabase = createClient()
+    const supabase = createAdminClient()
     const { data: client } = await supabase
       .from('clients')
       .select('email, name')

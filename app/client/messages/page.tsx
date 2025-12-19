@@ -63,7 +63,7 @@ export default function MessagesPage() {
       }
 
       // Load sender profiles and check if admin
-      const senderIds = [...new Set((messagesData || []).map((msg: any) => msg.sender_id).filter(Boolean))]
+      const senderIds = Array.from(new Set((messagesData || []).map((msg: any) => msg.sender_id).filter(Boolean)))
       let sendersMap: Record<string, any> = {}
       
       if (senderIds.length > 0) {

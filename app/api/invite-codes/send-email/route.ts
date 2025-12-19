@@ -31,8 +31,11 @@ export async function POST(request: NextRequest) {
 
     if (!result.success) {
       console.error('Email send result:', result)
+      const errorMessage = result.error && typeof result.error === 'object' && 'message' in result.error 
+        ? (result.error as { message: string }).message 
+        : 'Failed to send email. Check Resend dashboard for details.'
       return NextResponse.json(
-        { error: result.error?.message || 'Failed to send email. Check Resend dashboard for details.' },
+        { error: errorMessage },
         { status: 500 }
       )
     }

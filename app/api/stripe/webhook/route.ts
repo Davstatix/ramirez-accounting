@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
 
       if (client) {
         // Check if subscription is set to cancel at period end
-        let status = subscription.status
+        let status: string = subscription.status
         if (subscription.cancel_at_period_end && subscription.status === 'active') {
           status = 'canceling'
         }
