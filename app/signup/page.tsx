@@ -6,8 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { Eye, EyeOff, CheckCircle, Ticket } from 'lucide-react'
 
-function SignupForm() {
-  const searchParams = useSearchParams()
+function SignupFormContent() {
   const router = useRouter()
   const supabase = createClient()
   
@@ -27,6 +26,9 @@ function SignupForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // Get search params safely
+  const searchParams = useSearchParams()
+  
   // Initialize from URL params
   useEffect(() => {
     const code = searchParams.get('code') || ''
@@ -340,11 +342,15 @@ function SignupPageLoading() {
   )
 }
 
-export default function SignupPage() {
+function SignupForm() {
   return (
     <Suspense fallback={<SignupPageLoading />}>
-      <SignupForm />
+      <SignupFormContent />
     </Suspense>
   )
+}
+
+export default function SignupPage() {
+  return <SignupForm />
 }
 
