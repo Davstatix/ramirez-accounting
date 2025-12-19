@@ -692,7 +692,7 @@ export default function DocumentsPage() {
 
           <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-lg">
             <p className="text-sm text-amber-800">
-              <strong>Don't have QuickBooks?</strong> Enter "N/A" in the fields and let your accountant know in the notes. They can help you set it up.
+              <strong>Don&apos;t have QuickBooks?</strong> Enter &quot;N/A&quot; in the fields and let your accountant know in the notes. They can help you set it up.
             </p>
           </div>
         </div>

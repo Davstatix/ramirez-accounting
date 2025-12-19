@@ -242,7 +242,7 @@ export default function ClientReportsPage() {
           <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-500 mb-2">No reports available yet</p>
           <p className="text-sm text-gray-400">
-            Your accountant will upload reports here once they're ready
+            Your accountant will upload reports here once they&apos;re ready
           </p>
         </div>
       ) : (

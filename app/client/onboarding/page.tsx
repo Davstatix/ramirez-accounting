@@ -682,7 +682,7 @@ export default function OnboardingPage() {
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Welcome to Ramirez Accounting</h1>
           <p className="text-lg text-gray-600">
-            Let's get you set up. This will only take a few minutes.
+            Let&apos;s get you set up. This will only take a few minutes.
           </p>
         </div>
 
@@ -1181,7 +1181,7 @@ function QuickBooksConnectionStep({
             required
           />
           <p className="text-xs text-gray-500 mt-1">
-            We'll send an accountant invite to this email address.
+            We&apos;ll send an accountant invite to this email address.
           </p>
         </div>
 
@@ -1199,7 +1199,7 @@ function QuickBooksConnectionStep({
 
       <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-lg">
         <p className="text-sm text-amber-800">
-          <strong>Don't have QuickBooks yet?</strong> No problem! Enter "N/A" in the fields above and mention in the notes that you don't have QuickBooks. We can help you set it up after onboarding.
+          <strong>Don&apos;t have QuickBooks yet?</strong> No problem! Enter &quot;N/A&quot; in the fields above and mention in the notes that you don&apos;t have QuickBooks. We can help you set it up after onboarding.
         </p>
       </div>
     </div>
@@ -1371,7 +1371,7 @@ function ReviewStep({
     <div>
       <h2 className="text-3xl font-bold text-gray-900 mb-3">Almost There! 🎉</h2>
       <p className="text-lg text-gray-600 mb-8">
-        Review your uploaded documents below. Everything looks good? Click "Complete Setup" to finish!
+        Review your uploaded documents below. Everything looks good? Click &quot;Complete Setup&quot; to finish!
       </p>
 
       {/* Uploaded Documents List */}
@@ -1487,7 +1487,7 @@ function ReviewStep({
                 All Required Documents Uploaded! 🎉
               </p>
               <p className="text-green-700 text-sm">
-                You're all set! Click "Complete Setup" below to finish your onboarding.
+                You&apos;re all set! Click &quot;Complete Setup&quot; below to finish your onboarding.
               </p>
             </div>
           </div>
@@ -1506,7 +1506,7 @@ function ReviewStep({
       <div className="bg-gradient-to-r from-blue-50 to-primary-50 border border-blue-200 rounded-xl p-5">
         <p className="text-sm text-gray-700">
           <strong className="text-gray-900">💡 Tip:</strong> You can update or remove documents anytime from your dashboard after
-          completing onboarding. Just go to <strong>"Documents"</strong> in the menu.
+          completing onboarding. Just go to <strong>&quot;Documents&quot;</strong> in the menu.
         </p>
       </div>
     </div>

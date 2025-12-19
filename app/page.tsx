@@ -129,7 +129,7 @@ export default function Home() {
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-3">Catch-Up Bookkeeping</h3>
               <p className="text-gray-600 leading-relaxed">
-                Get your books up to date if you've fallen behind. We'll organize and reconcile past periods quickly and accurately.
+                Get your books up to date if you&apos;ve fallen behind. We&apos;ll organize and reconcile past periods quickly and accurately.
               </p>
             </div>
 
@@ -272,7 +272,7 @@ export default function Home() {
               <h3 className="text-xl font-bold text-white mb-3">Row-Level Security</h3>
               <p className="text-gray-300 leading-relaxed">
                 Advanced access controls ensure that only authorized users can view their own data. 
-                Each client's information is completely isolated and protected.
+                Each client&apos;s information is completely isolated and protected.
               </p>
             </div>
 
@@ -283,7 +283,7 @@ export default function Home() {
               <h3 className="text-xl font-bold text-white mb-3">Secure Authentication</h3>
               <p className="text-gray-300 leading-relaxed">
                 Secure password-based authentication protects your account. 
-                All login sessions are encrypted and handled through Supabase's secure authentication system.
+                All login sessions are encrypted and handled through Supabase&apos;s secure authentication system.
               </p>
             </div>
 
@@ -305,7 +305,7 @@ export default function Home() {
               <h3 className="text-xl font-bold text-white mb-3">Access Controls</h3>
               <p className="text-gray-300 leading-relaxed">
                 Row-level security policies ensure that only authorized users can access their own data. 
-                Each client's information is completely isolated and protected from unauthorized access.
+                Each client&apos;s information is completely isolated and protected from unauthorized access.
               </p>
             </div>
           </div>
@@ -420,8 +420,8 @@ export default function Home() {
 
           <div className="mt-16 text-center bg-gradient-to-r from-primary-50 to-primary-100 rounded-2xl p-8">
             <p className="text-lg text-gray-700 leading-relaxed max-w-3xl mx-auto">
-              <strong className="text-gray-900">Together</strong>, we combine Johan's accounting expertise with David's 
-              technical innovation to deliver exceptional bookkeeping services. We're not just number-crunchers—we're 
+              <strong className="text-gray-900">Together</strong>, we combine Johan&apos;s accounting expertise with David&apos;s 
+              technical innovation to deliver exceptional bookkeeping services. We&apos;re not just number-crunchers—we&apos;re 
               your partners in financial success, helping you understand your business better and make smarter decisions 
               that drive growth.
             </p>
@@ -434,11 +434,11 @@ export default function Home() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <div className="inline-block mb-4">
-              <span className="text-primary-600 font-semibold text-sm uppercase tracking-wide">Let's Talk</span>
+              <span className="text-primary-600 font-semibold text-sm uppercase tracking-wide">Let&apos;s Talk</span>
             </div>
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Book Your Free Discovery Call</h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Ready to level up your finances? Let's discuss how we can help your business thrive. 
+              Ready to level up your finances? Let&apos;s discuss how we can help your business thrive. 
               No obligation, just a conversation about your goals.
             </p>
           </div>
@@ -451,7 +451,7 @@ export default function Home() {
                   <div>
                     <h3 className="font-bold text-gray-900 mb-1">What to Expect</h3>
                     <p className="text-gray-700 text-sm">
-                      During your free discovery call, we'll discuss your business needs, answer your questions, 
+                      During your free discovery call, we&apos;ll discuss your business needs, answer your questions, 
                       and show you how we can help streamline your finances. Typically 15-30 minutes.
                     </p>
                   </div>
