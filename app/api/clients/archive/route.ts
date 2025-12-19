@@ -1,6 +1,9 @@
-import { createServerSupabaseClient } from '@/lib/supabase-server'
-import { createClient } from '@supabase/supabase-js'
+import { createServerSupabaseClient, createAdminClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
+
+// Mark route as dynamic to prevent build-time analysis
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export async function POST(request: Request) {
   try {
@@ -32,10 +35,7 @@ export async function POST(request: Request) {
     }
 
     // Use service role client for admin operations
-    const serviceClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const serviceClient = createAdminClient()
 
     // First, check if archive tables exist, if not, create them on the fly
     // Get client data first

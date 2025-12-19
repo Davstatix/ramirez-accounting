@@ -2,11 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createAdminClient } from '@/lib/supabase-server'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+// Mark route as dynamic to prevent build-time analysis
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
   try {
     const { clientId } = await request.json()
+
+    // Initialize Stripe at runtime
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+    if (!stripeSecretKey) {
+      return NextResponse.json({ error: 'STRIPE_SECRET_KEY is required' }, { status: 500 })
+    }
+    const stripe = new Stripe(stripeSecretKey)
 
     // Get client's Stripe customer ID
     const supabase = createAdminClient()

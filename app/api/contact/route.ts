@@ -1,7 +1,9 @@
 import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Mark route as dynamic to prevent build-time analysis
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export async function POST(request: Request) {
   try {
@@ -15,6 +17,16 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
+
+    // Initialize Resend at runtime
+    const resendApiKey = process.env.RESEND_API_KEY
+    if (!resendApiKey) {
+      return NextResponse.json(
+        { error: 'RESEND_API_KEY is required' },
+        { status: 500 }
+      )
+    }
+    const resend = new Resend(resendApiKey)
 
     // Send email to David
     const { data, error } = await resend.emails.send({

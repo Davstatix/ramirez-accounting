@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createAdminClient } from '@/lib/supabase-server'
 import crypto from 'crypto'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+// Mark route as dynamic to prevent build-time analysis
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 function generateCode(): string {
   // Generate a readable 8-character code like "ABCD-1234"
@@ -25,6 +24,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { email, client_name, notes, expires_days = 7, created_by } = body
+
+    // Create Supabase client at runtime
+    const supabase = createAdminClient()
 
     // Generate unique code
     let code = generateCode()

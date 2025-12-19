@@ -1,16 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import { createClient } from '@supabase/supabase-js'
+import { createAdminClient } from '@/lib/supabase-server'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
-
-// Use service role for webhook (no user context)
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+// Mark route as dynamic to prevent build-time analysis
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
+  // Create Supabase client at runtime (not build time)
+  const supabase = createAdminClient()
+  
+  // Initialize Stripe at runtime
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+  if (!stripeSecretKey) {
+    return NextResponse.json({ error: 'STRIPE_SECRET_KEY is required' }, { status: 500 })
+  }
+  const stripe = new Stripe(stripeSecretKey)
   const body = await request.text()
   const signature = request.headers.get('stripe-signature')
 
@@ -21,10 +26,14 @@ export async function POST(request: NextRequest) {
   let event: Stripe.Event
 
   try {
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+    if (!webhookSecret) {
+      return NextResponse.json({ error: 'STRIPE_WEBHOOK_SECRET is required' }, { status: 500 })
+    }
     event = stripe.webhooks.constructEvent(
       body,
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
+      webhookSecret
     )
   } catch (err: any) {
     console.error('Webhook signature verification failed:', err.message)
