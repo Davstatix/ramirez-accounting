@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
@@ -8,10 +8,11 @@ import { Eye, EyeOff, CheckCircle, Ticket } from 'lucide-react'
 
 function SignupForm() {
   const searchParams = useSearchParams()
-  const initialCode = searchParams.get('code') || ''
+  const router = useRouter()
+  const supabase = createClient()
   
-  const [step, setStep] = useState<'code' | 'signup'>(initialCode ? 'signup' : 'code')
-  const [inviteCode, setInviteCode] = useState(initialCode)
+  const [step, setStep] = useState<'code' | 'signup'>('code')
+  const [inviteCode, setInviteCode] = useState('')
   const [validatedCode, setValidatedCode] = useState<any>(null)
   
   const [name, setName] = useState('')
@@ -25,8 +26,15 @@ function SignupForm() {
   
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const router = useRouter()
-  const supabase = createClient()
+
+  // Initialize from URL params
+  useEffect(() => {
+    const code = searchParams.get('code') || ''
+    if (code) {
+      setInviteCode(code)
+      setStep('signup')
+    }
+  }, [searchParams])
 
   const validateCode = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -321,16 +329,20 @@ function SignupForm() {
   )
 }
 
+function SignupPageLoading() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+        <p className="mt-4 text-gray-600">Loading...</p>
+      </div>
+    </div>
+  )
+}
+
 export default function SignupPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    }>
+    <Suspense fallback={<SignupPageLoading />}>
       <SignupForm />
     </Suspense>
   )
