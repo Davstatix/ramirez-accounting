@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { Eye, EyeOff, CheckCircle, Ticket } from 'lucide-react'
 
-function SignupFormContent() {
+export default function SignupPage() {
   const router = useRouter()
   const supabase = createClient()
   
@@ -26,17 +26,17 @@ function SignupFormContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // Get search params safely
-  const searchParams = useSearchParams()
-  
-  // Initialize from URL params
+  // Initialize from URL params using window.location (more reliable than useSearchParams)
   useEffect(() => {
-    const code = searchParams.get('code') || ''
-    if (code) {
-      setInviteCode(code)
-      setStep('signup')
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      const code = urlParams.get('code') || ''
+      if (code) {
+        setInviteCode(code)
+        setStep('signup')
+      }
     }
-  }, [searchParams])
+  }, [])
 
   const validateCode = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -331,26 +331,4 @@ function SignupFormContent() {
   )
 }
 
-function SignupPageLoading() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Loading...</p>
-      </div>
-    </div>
-  )
-}
-
-function SignupForm() {
-  return (
-    <Suspense fallback={<SignupPageLoading />}>
-      <SignupFormContent />
-    </Suspense>
-  )
-}
-
-export default function SignupPage() {
-  return <SignupForm />
-}
 
