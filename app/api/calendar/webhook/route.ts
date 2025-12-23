@@ -9,42 +9,41 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     
-    // Handle Google Calendar API push notification
-    // Google Calendar sends notifications when events are created/updated
-    if (body.type === 'sync' || body.syncToken) {
-      // This is a Google Calendar push notification
-      // You'll need to fetch the actual event details using Google Calendar API
-      // For now, we'll log it - you can extend this to fetch event details
-      console.log('Google Calendar push notification received')
-      
-      // Note: To fully implement this, you'd need to:
-      // 1. Set up Google Calendar API OAuth
-      // 2. Use the sync token to fetch new events
-      // 3. Parse event details and send notification
-      
-      return NextResponse.json({ success: true, message: 'Google Calendar notification received' })
-    }
-
-    // Handle Calendly webhook format (if you want to keep support)
+    // Handle Calendly webhook format
     if (body.event === 'invitee.created' || body.event === 'invitee.canceled') {
       const invitee = body.payload?.invitee
       const event = body.payload?.event_type
       
       if (body.event === 'invitee.created') {
+        // Extract booking details from Calendly webhook
         const bookingDetails = {
-          eventType: event?.name || 'Discovery Call',
+          eventType: event?.name || '30-Minute Discovery Call',
           startTime: body.payload?.scheduled_event?.start_time 
-            ? new Date(body.payload.scheduled_event.start_time).toLocaleString()
+            ? new Date(body.payload.scheduled_event.start_time).toLocaleString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                timeZoneName: 'short'
+              })
             : undefined,
           endTime: body.payload?.scheduled_event?.end_time
-            ? new Date(body.payload.scheduled_event.end_time).toLocaleString()
+            ? new Date(body.payload.scheduled_event.end_time).toLocaleString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                timeZoneName: 'short'
+              })
             : undefined,
           timezone: body.payload?.scheduled_event?.timezone || 'America/New_York',
           meetingUrl: body.payload?.scheduled_event?.location?.location || 
                      body.payload?.scheduled_event?.location?.join_url || 
+                     body.payload?.scheduled_event?.location?.hangout_link ||
                      undefined,
         }
 
+        // Send notification email to admin
         await sendAdminCalendarBookingEmail(
           invitee?.name || 'Unknown',
           invitee?.email || '',

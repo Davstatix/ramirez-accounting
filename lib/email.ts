@@ -341,9 +341,9 @@ export async function sendAdminOnboardingCompleteEmail(clientName: string, planN
 
 // Thank you email to client after discovery call form submission
 export async function sendDiscoveryCallThankYouEmail(clientName: string, clientEmail: string) {
-  // Google Calendar appointment schedule URL format: https://calendar.google.com/calendar/appointments/schedules/{scheduleId}
-  // Or use the shareable appointment schedule link from Google Calendar
-  const calendarUrl = process.env.GOOGLE_CALENDAR_APPOINTMENT_URL || process.env.CALENDAR_BOOKING_URL || 'https://calendar.google.com/calendar/appointments/schedules/YOUR_SCHEDULE_ID'
+  // Calendly URL format: https://calendly.com/{username}/{event-type}
+  // Example: https://calendly.com/ramirez-accounting/30min
+  const calendarUrl = process.env.CALENDLY_BOOKING_URL || process.env.CALENDAR_BOOKING_URL || 'https://calendly.com/ramirez-accounting/30min'
   
   try {
     await resend.emails.send({
