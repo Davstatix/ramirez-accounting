@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { Plus, Copy, Check, Trash2, Clock, CheckCircle, XCircle, Mail, Send } from 'lucide-react'
+import { PRICING_PLANS, PlanId } from '@/lib/stripe'
 
 interface InviteCode {
   id: string
@@ -10,6 +11,7 @@ interface InviteCode {
   email: string | null
   client_name: string | null
   notes: string | null
+  recommended_plan: string | null
   used: boolean
   used_at: string | null
   expires_at: string
@@ -27,6 +29,7 @@ export default function InviteCodesPage() {
     email: '',
     notes: '',
     expires_days: 7,
+    recommended_plan: '' as PlanId | '',
   })
 
   const supabase = createClient()
@@ -72,7 +75,20 @@ export default function InviteCodesPage() {
 
       setCodes([result.invite_code, ...codes])
       setShowForm(false)
-      setFormData({ client_name: '', email: '', notes: '', expires_days: 7 })
+      setFormData({ client_name: '', email: '', notes: '', expires_days: 7, recommended_plan: '' })
+      
+      // Show feedback about email sending
+      if (formData.email) {
+        if (result.email_sent) {
+          alert(`✅ Invite code created and email sent to ${formData.email}`)
+        } else if (result.email_error) {
+          alert(`⚠️ Invite code created, but email failed to send: ${result.email_error}\n\nYou can manually send the email using the "Send Email" button.`)
+        } else {
+          alert(`✅ Invite code created. Email sending status unknown.`)
+        }
+      } else {
+        alert('✅ Invite code created successfully!')
+      }
     } catch (err: any) {
       console.error('Error creating invite code:', err)
       alert(err.message || 'Failed to create invite code')
@@ -118,6 +134,7 @@ export default function InviteCodesPage() {
           client_name: code.client_name,
           code: code.code,
           expires_at: code.expires_at,
+          invite_code_id: code.id, // Pass ID to fetch recommended plan
         }),
       })
 
@@ -202,20 +219,40 @@ export default function InviteCodesPage() {
                 placeholder="Notes from discovery call..."
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Expires In
-              </label>
-              <select
-                value={formData.expires_days}
-                onChange={(e) => setFormData({ ...formData, expires_days: parseInt(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-gray-900"
-              >
-                <option value={3}>3 days</option>
-                <option value={7}>7 days</option>
-                <option value={14}>14 days</option>
-                <option value={30}>30 days</option>
-              </select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Recommended Plan
+                </label>
+                <select
+                  value={formData.recommended_plan}
+                  onChange={(e) => setFormData({ ...formData, recommended_plan: e.target.value as PlanId | '' })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-gray-900"
+                >
+                  <option value="">Select a plan (optional)</option>
+                  {Object.entries(PRICING_PLANS).map(([planId, plan]) => (
+                    <option key={planId} value={planId}>
+                      {plan.name} - ${(plan.price / 100).toLocaleString()}/month
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">The plan you discussed with the client</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Expires In
+                </label>
+                <select
+                  value={formData.expires_days}
+                  onChange={(e) => setFormData({ ...formData, expires_days: parseInt(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-gray-900"
+                >
+                  <option value={3}>3 days</option>
+                  <option value={7}>7 days</option>
+                  <option value={14}>14 days</option>
+                  <option value={30}>30 days</option>
+                </select>
+              </div>
             </div>
             <div className="flex space-x-3">
               <button

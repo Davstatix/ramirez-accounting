@@ -71,7 +71,7 @@ export default function ContactForm() {
           <div>
             <h4 className="font-semibold text-green-900 mb-1">Message Sent Successfully!</h4>
             <p className="text-sm text-green-700">
-              Thank you for your interest! We&apos;ll respond within 24 hours to schedule your free discovery call.
+              Thank you for your interest! Check your email for an instant confirmation with a link to schedule your free discovery call.
             </p>
           </div>
         </div>
@@ -194,7 +194,7 @@ export default function ContactForm() {
       </button>
 
       <p className="text-center text-sm text-gray-500">
-        We&apos;ll respond within 24 hours to schedule your call
+        You&apos;ll receive an instant email with a link to schedule your call
       </p>
     </form>
   )

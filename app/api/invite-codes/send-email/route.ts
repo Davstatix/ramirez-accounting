@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { sendInviteCodeEmail } from '@/lib/email'
+import { createAdminClient } from '@/lib/supabase-server'
+import { PRICING_PLANS, PlanId } from '@/lib/stripe'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, client_name, code, expires_at } = body
+    const { email, client_name, code, expires_at, invite_code_id } = body
 
     if (!email || !code || !expires_at) {
       return NextResponse.json(
@@ -13,20 +15,32 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // For testing: if USE_TEST_EMAIL is enabled, send to test email but log the real email
-    const recipientEmail = process.env.USE_TEST_EMAIL === 'true' 
-      ? 'delivered@resend.dev' 
-      : email
-
-    if (process.env.USE_TEST_EMAIL === 'true') {
-      console.log(`[TEST MODE] Invite code email would be sent to: ${email}, but sending to test email instead`)
+    // Get recommended plan from invite code if invite_code_id is provided
+    let recommendedPlan = null
+    if (invite_code_id) {
+      try {
+        const supabase = createAdminClient()
+        const { data: inviteCode } = await supabase
+          .from('invite_codes')
+          .select('recommended_plan')
+          .eq('id', invite_code_id)
+          .single()
+        
+        if (inviteCode?.recommended_plan && PRICING_PLANS[inviteCode.recommended_plan as PlanId]) {
+          recommendedPlan = PRICING_PLANS[inviteCode.recommended_plan as PlanId]
+        }
+      } catch (err) {
+        console.warn('Could not fetch recommended plan:', err)
+      }
     }
 
+    // Always send to the actual client email (no test email redirect)
     const result = await sendInviteCodeEmail(
-      recipientEmail,
+      email,
       client_name || 'there',
       code,
-      new Date(expires_at)
+      new Date(expires_at),
+      recommendedPlan
     )
 
     if (!result.success) {
@@ -42,9 +56,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ 
       success: true,
-      message: process.env.USE_TEST_EMAIL === 'true' 
-        ? `Email sent to test inbox (would have gone to ${email})`
-        : 'Email sent successfully'
+      message: 'Email sent successfully'
     })
   } catch (error: any) {
     console.error('Error sending invite code email:', error)

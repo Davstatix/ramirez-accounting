@@ -24,84 +24,123 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
-    const { data, error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    try {
+      console.log('Starting login...')
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
-    if (signInError) {
-      setError(signInError.message)
-      setLoading(false)
-      return
-    }
+      if (signInError) {
+        console.error('Sign in error:', signInError.message)
+        setError(signInError.message)
+        setLoading(false)
+        return
+      }
 
-    if (data.user) {
+      if (!data.user) {
+        console.error('No user data returned')
+        setError('Login failed. Please try again.')
+        setLoading(false)
+        return
+      }
+
+      console.log('Login successful! User ID:', data.user.id)
+      console.log('Session exists:', !!data.session)
+
+      // The session should be in data.session after signInWithPassword
+      if (!data.session) {
+        console.error('No session in login response')
+        setError('Session not established. Please try again.')
+        setLoading(false)
+        return
+      }
+
+      // Wait for Supabase to persist the session
+      // createBrowserClient automatically handles cookies, but we need to verify the session is accessible
+      console.log('Verifying session is accessible...')
+      let sessionReady = false
+      for (let i = 0; i < 5; i++) {
+        await new Promise(resolve => setTimeout(resolve, 300))
+        const { data: { session: checkSession }, error: sessionError } = await supabase.auth.getSession()
+        if (checkSession && checkSession.user) {
+          sessionReady = true
+          console.log(`Session verified on attempt ${i + 1}/5`)
+          console.log('User ID:', checkSession.user.id)
+          break
+        } else {
+          console.log(`Check ${i + 1}/5 - Session: ${!!checkSession}, Error: ${sessionError?.message || 'none'}`)
+        }
+      }
+      
+      if (!sessionReady) {
+        console.warn('Session not accessible after 5 attempts - trying redirect anyway...')
+        // Continue anyway - sometimes cookies are set but not immediately readable
+      } else {
+        console.log('Session verified and ready!')
+      }
+
       // Check user role and redirect accordingly
-      let profile: any = null
       let userRole = 'client' // Default to client
       
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('role, email')
-        .eq('id', data.user.id)
-        .single()
+      try {
+        console.log('Checking user profile...')
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('role, email')
+          .eq('id', data.user.id)
+          .single()
 
-      if (profileError) {
-        console.error('Error fetching profile:', profileError)
-        
-        if (profileError.code === 'PGRST116') {
-          console.log('Profile not found, attempting to create...')
-          const { data: newProfile, error: upsertError } = await supabase
-            .from('profiles')
-            .upsert({
-              id: data.user.id,
-              email: data.user.email || '',
-              role: 'client',
-            }, {
-              onConflict: 'id'
-            })
-            .select()
-            .single()
+        if (profileError) {
+          console.log('Profile error:', profileError.message)
           
-          if (upsertError) {
-            console.error('Error upserting profile:', upsertError)
-            const { data: retryProfile } = await supabase
+          // If profile doesn't exist, try to create it
+          if (profileError.code === 'PGRST116') {
+            console.log('Profile not found, attempting to create...')
+            const { data: newProfile, error: upsertError } = await supabase
               .from('profiles')
-              .select('role, email')
-              .eq('id', data.user.id)
+              .upsert({
+                id: data.user.id,
+                email: data.user.email || '',
+                role: 'client',
+              }, {
+                onConflict: 'id'
+              })
+              .select()
               .single()
             
-            if (retryProfile) {
-              profile = retryProfile
+            if (!upsertError && newProfile?.role) {
+              userRole = newProfile.role.toLowerCase()
+              console.log('Profile created, role:', userRole)
             } else {
-              setError(`Unable to create profile. Please contact support.`)
-              setLoading(false)
-              return
+              console.log('Failed to create profile, using default client role')
             }
           } else {
-            profile = newProfile
+            console.log('Profile query failed, using default client role')
           }
-        } else {
-          console.warn('Profile query failed but continuing with default client role')
+        } else if (profileData?.role) {
+          userRole = profileData.role.toLowerCase()
+          console.log('Profile found, role:', userRole)
         }
-      } else {
-        profile = profileData
+      } catch (profileErr: any) {
+        console.error('Error processing profile:', profileErr.message)
+        // Continue with default client role
       }
 
-      if (profile?.role) {
-        userRole = profile.role.toLowerCase()
-      }
-
-      if (userRole === 'admin') {
-        window.location.replace('/admin')
-        return
-      } else {
-        window.location.replace('/client')
-        return
-      }
+      // Determine redirect path
+      const redirectPath = userRole === 'admin' ? '/admin' : '/client'
+      console.log('Redirecting to:', redirectPath)
+      
+      // Use a small delay to ensure cookies are set, then redirect
+      setTimeout(() => {
+        window.location.href = redirectPath
+      }, 300)
+      
+    } catch (error: any) {
+      console.error('Login error:', error.message || 'Unknown error')
+      setError(error.message || 'An unexpected error occurred. Please try again.')
+      setLoading(false)
     }
-    
-    setLoading(false)
   }
 
   const handleForgotPassword = async (e: React.FormEvent) => {

@@ -116,9 +116,8 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', codeData.id)
 
-    // Send welcome email to client
-    const clientEmail = process.env.USE_TEST_EMAIL === 'true' ? 'delivered@resend.dev' : email
-    sendWelcomeEmail(clientEmail, name).catch(err => console.error('Failed to send welcome email:', err))
+    // Send welcome email to client (always use actual client email)
+    sendWelcomeEmail(email, name).catch(err => console.error('Failed to send welcome email:', err))
 
     // Notify admin of new signup
     sendAdminNewClientEmail(name, email).catch(err => console.error('Failed to send admin notification:', err))

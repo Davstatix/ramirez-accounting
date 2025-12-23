@@ -25,11 +25,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (senderType === 'admin') {
-      // Admin sent message to client - notify client
+      // Admin sent message to client - notify client (always use actual client email)
       const { data: authUser } = await supabase.auth.admin.getUserById(client.user_id)
-      const email = process.env.USE_TEST_EMAIL === 'true' 
-        ? 'delivered@resend.dev' 
-        : (authUser?.user?.email || client.email)
+      const email = authUser?.user?.email || client.email
       await sendNewMessageEmail(email, client.name, subject)
     } else {
       // Client sent message - notify admin

@@ -498,17 +498,27 @@ export default function Home() {
             <div>
               <h4 className="text-lg font-semibold mb-4">Contact</h4>
               <p className="text-gray-400">
-                Email: davidr2505@gmail.com<br />
-                Phone: (631) 220-8511
+                Email: david@ramirezaccountingny.com<br />
+                Phone: (516) 595-3637
               </p>
             </div>
           </div>
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; {new Date().getFullYear()} Ramirez Accounting. All rights reserved.</p>
+          <div className="border-t border-gray-800 mt-8 pt-8">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <p className="text-gray-400 text-sm">
+                &copy; {new Date().getFullYear()} Ramirez Accounting. All rights reserved.
+              </p>
+              <div className="flex flex-wrap gap-4 text-sm text-gray-400">
+                <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
+                <Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
+                <Link href="/disclaimer" className="hover:text-white transition-colors">Disclaimer</Link>
+              </div>
+            </div>
           </div>
         </div>
       </footer>
     </div>
   )
 }
+
 
