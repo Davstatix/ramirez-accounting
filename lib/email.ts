@@ -339,3 +339,98 @@ export async function sendAdminOnboardingCompleteEmail(clientName: string, planN
   }
 }
 
+// Thank you email to client after discovery call form submission
+export async function sendDiscoveryCallThankYouEmail(clientName: string, clientEmail: string) {
+  const calendarUrl = process.env.CALENDAR_BOOKING_URL || 'https://calendly.com/ramirez-accounting/discovery-call'
+  
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: clientEmail,
+      subject: 'Thank You for Your Interest - Schedule Your Free Discovery Call',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #0ea5e9; border-bottom: 2px solid #0ea5e9; padding-bottom: 10px;">
+            Thank You for Your Interest!
+          </h1>
+          <p>Hi ${clientName},</p>
+          <p>Thank you for reaching out to Ramirez Accounting! We're excited to learn more about your business and how we can help you with your bookkeeping needs.</p>
+          
+          <div style="background-color: #f0f9ff; border: 2px solid #0ea5e9; border-radius: 8px; padding: 24px; margin: 24px 0; text-align: center;">
+            <h2 style="color: #0ea5e9; margin-top: 0;">Schedule Your Free Discovery Call</h2>
+            <p style="color: #374151; margin-bottom: 20px;">Let's find a time that works for you. During this call, we'll:</p>
+            <ul style="text-align: left; color: #374151; margin: 0 auto; display: inline-block;">
+              <li>Discuss your business needs and challenges</li>
+              <li>Explain how our services can help</li>
+              <li>Answer any questions you have</li>
+              <li>Determine the best plan for your business</li>
+            </ul>
+            <p style="margin-top: 24px;">
+              <a href="${calendarUrl}" 
+                 style="display: inline-block; background-color: #0ea5e9; color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                📅 Book Your Discovery Call
+              </a>
+            </p>
+          </div>
+          
+          <p style="color: #6b7280; font-size: 14px; margin-top: 24px;">
+            If you have any questions before our call, feel free to reply to this email. We typically respond within 24 hours.
+          </p>
+          
+          <p>We look forward to speaking with you soon!</p>
+          <p>Best regards,<br><strong>David Ramirez</strong><br>Ramirez Accounting</p>
+        </div>
+      `,
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Error sending discovery call thank you email:', error)
+    return { success: false, error }
+  }
+}
+
+// Email to admin when client books a discovery call
+export async function sendAdminCalendarBookingEmail(clientName: string, clientEmail: string, bookingDetails: {
+  eventType?: string
+  startTime?: string
+  endTime?: string
+  timezone?: string
+  meetingUrl?: string
+}) {
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      subject: `Discovery Call Scheduled: ${clientName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #0ea5e9; border-bottom: 2px solid #0ea5e9; padding-bottom: 10px;">
+            Discovery Call Scheduled
+          </h1>
+          <p><strong>${clientName}</strong> has scheduled a discovery call!</p>
+          
+          <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #111827; margin-top: 0;">Booking Details</h3>
+            <p style="margin: 8px 0;"><strong>Client:</strong> ${clientName}</p>
+            <p style="margin: 8px 0;"><strong>Email:</strong> <a href="mailto:${clientEmail}">${clientEmail}</a></p>
+            ${bookingDetails.startTime ? `<p style="margin: 8px 0;"><strong>Date & Time:</strong> ${bookingDetails.startTime}${bookingDetails.timezone ? ` (${bookingDetails.timezone})` : ''}</p>` : ''}
+            ${bookingDetails.endTime ? `<p style="margin: 8px 0;"><strong>Duration:</strong> ${bookingDetails.endTime}</p>` : ''}
+            ${bookingDetails.meetingUrl ? `<p style="margin: 8px 0;"><strong>Meeting Link:</strong> <a href="${bookingDetails.meetingUrl}">${bookingDetails.meetingUrl}</a></p>` : ''}
+          </div>
+          
+          <p style="margin-top: 24px;">
+            <a href="${process.env.NEXT_PUBLIC_APP_URL}/admin/clients" 
+               style="display: inline-block; background-color: #0ea5e9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
+              View Clients
+            </a>
+          </p>
+        </div>
+      `,
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Error sending admin calendar booking email:', error)
+    return { success: false, error }
+  }
+}
+

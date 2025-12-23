@@ -1,5 +1,6 @@
 import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
+import { sendDiscoveryCallThankYouEmail } from '@/lib/email'
 
 // Mark route as dynamic to prevent build-time analysis
 export const dynamic = 'force-dynamic'
@@ -67,6 +68,14 @@ export async function POST(request: Request) {
         { error: 'Failed to send email' },
         { status: 500 }
       )
+    }
+
+    // Send thank you email to client with calendar booking link
+    try {
+      await sendDiscoveryCallThankYouEmail(name, email)
+    } catch (thankYouError) {
+      console.error('Error sending thank you email:', thankYouError)
+      // Don't fail the request if thank you email fails - the main email was sent
     }
 
     return NextResponse.json(
