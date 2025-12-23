@@ -5,11 +5,14 @@ import { sendAdminCalendarBookingEmail } from '@/lib/email'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
+// Note: Calendly webhooks require a paid plan. 
+// On the free plan, Calendly will still send email notifications automatically.
+// This webhook is optional and only needed if you want custom notification emails.
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     
-    // Handle Calendly webhook format
+    // Handle Calendly webhook format (requires Calendly paid plan)
     if (body.event === 'invitee.created' || body.event === 'invitee.canceled') {
       const invitee = body.payload?.invitee
       const event = body.payload?.event_type
