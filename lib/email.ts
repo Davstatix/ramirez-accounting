@@ -2,8 +2,8 @@ import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-// For testing, use Resend's test domain. In production, use your verified domain.
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Ramirez Bookkeeping <onboarding@resend.dev>'
+// Use verified domain for production emails
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Ramirez Accounting <contact@ramirezaccountingny.com>'
 
 export async function sendWelcomeEmail(to: string, clientName: string) {
   try {
