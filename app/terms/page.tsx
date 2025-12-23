@@ -29,7 +29,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">1. Agreement to Terms</h2>
             <p>
-              By accessing or using Ramirez Accounting's services, you agree to be bound by these Terms of Service. 
+              By accessing or using Ramirez Accounting&apos;s services, you agree to be bound by these Terms of Service. 
               If you disagree with any part of these terms, you may not access our services.
             </p>
           </section>

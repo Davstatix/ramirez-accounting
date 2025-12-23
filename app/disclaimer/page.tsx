@@ -64,7 +64,7 @@ export default function Disclaimer() {
             <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">No Guarantee of Results</h2>
             <p>
               Past performance and results do not guarantee future outcomes. Our bookkeeping services are provided 
-              on an "as-is" basis. We make no warranties, expressed or implied, regarding the accuracy, completeness, 
+              on an &quot;as-is&quot; basis. We make no warranties, expressed or implied, regarding the accuracy, completeness, 
               or suitability of our services for your specific needs.
             </p>
           </section>
