@@ -9,13 +9,28 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     
-    // Handle Calendly webhook format
+    // Handle Google Calendar API push notification
+    // Google Calendar sends notifications when events are created/updated
+    if (body.type === 'sync' || body.syncToken) {
+      // This is a Google Calendar push notification
+      // You'll need to fetch the actual event details using Google Calendar API
+      // For now, we'll log it - you can extend this to fetch event details
+      console.log('Google Calendar push notification received')
+      
+      // Note: To fully implement this, you'd need to:
+      // 1. Set up Google Calendar API OAuth
+      // 2. Use the sync token to fetch new events
+      // 3. Parse event details and send notification
+      
+      return NextResponse.json({ success: true, message: 'Google Calendar notification received' })
+    }
+
+    // Handle Calendly webhook format (if you want to keep support)
     if (body.event === 'invitee.created' || body.event === 'invitee.canceled') {
       const invitee = body.payload?.invitee
       const event = body.payload?.event_type
       
       if (body.event === 'invitee.created') {
-        // Extract booking details
         const bookingDetails = {
           eventType: event?.name || 'Discovery Call',
           startTime: body.payload?.scheduled_event?.start_time 
@@ -30,7 +45,6 @@ export async function POST(request: NextRequest) {
                      undefined,
         }
 
-        // Send notification email to admin
         await sendAdminCalendarBookingEmail(
           invitee?.name || 'Unknown',
           invitee?.email || '',
@@ -41,7 +55,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Handle Cal.com webhook format
+    // Handle Cal.com webhook format (if you want to keep support)
     if (body.triggerEvent === 'BOOKING_CREATED' || body.triggerEvent === 'BOOKING_CANCELLED') {
       const booking = body.data?.booking
       
@@ -68,8 +82,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Generic webhook handler (for other calendar services)
-    // You can extend this to handle other formats
+    // Generic webhook handler
     console.log('Received calendar webhook:', JSON.stringify(body, null, 2))
 
     return NextResponse.json({ success: true, message: 'Webhook received' })
