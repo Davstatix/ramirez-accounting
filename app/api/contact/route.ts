@@ -30,7 +30,7 @@ export async function POST(request: Request) {
 
     // Send email to David
     const { data, error } = await resend.emails.send({
-      from: 'Ramirez Accounting <contact@ramirezaccountingny.com>',
+      from: 'Ramirez Accounting <contact@updates.ramirezaccountingny.com>',
       to: ['david@ramirezaccountingny.com'],
       subject: `New Discovery Call Request from ${name}`,
       html: `

@@ -3,7 +3,7 @@ import { Resend } from 'resend'
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 // Use verified domain for production emails
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Ramirez Accounting <contact@ramirezaccountingny.com>'
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Ramirez Accounting <contact@updates.ramirezaccountingny.com>'
 
 export async function sendWelcomeEmail(to: string, clientName: string) {
   try {
