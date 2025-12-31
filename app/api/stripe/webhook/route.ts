@@ -47,9 +47,17 @@ export async function POST(request: NextRequest) {
       const clientId = session.metadata?.client_id
       const planId = session.metadata?.plan_id
 
-      if (clientId && planId) {
+      console.log('📦 checkout.session.completed event received:', {
+        clientId,
+        planId,
+        customer: session.customer,
+        subscription: session.subscription,
+        mode: session.mode,
+      })
+
+      if (clientId && planId && session.mode === 'subscription') {
         // Update client with subscription info
-        await supabase
+        const { data, error } = await supabase
           .from('clients')
           .update({
             subscription_plan: planId,
@@ -59,8 +67,81 @@ export async function POST(request: NextRequest) {
             subscription_started_at: new Date().toISOString(),
           })
           .eq('id', clientId)
+          .select()
 
-        console.log(`Subscription activated for client ${clientId}: ${planId}`)
+        if (error) {
+          console.error('❌ Error updating client subscription:', error)
+        } else {
+          console.log(`✅ Subscription activated for client ${clientId}: ${planId}`, data)
+        }
+      } else {
+        console.warn('⚠️ Missing required data in checkout.session.completed:', {
+          clientId: !!clientId,
+          planId: !!planId,
+          mode: session.mode,
+        })
+      }
+      break
+    }
+
+    case 'customer.subscription.created': {
+      const subscription = event.data.object as Stripe.Subscription
+      const customerId = subscription.customer as string
+
+      console.log('📦 customer.subscription.created event received:', {
+        subscriptionId: subscription.id,
+        customerId,
+        status: subscription.status,
+        items: subscription.items.data,
+      })
+
+      // Find client by stripe customer ID
+      const { data: client, error: clientError } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('stripe_customer_id', customerId)
+        .maybeSingle()
+
+      if (clientError) {
+        console.error('❌ Error finding client by customer ID:', clientError)
+        break
+      }
+
+      if (client) {
+        // Extract plan ID from subscription items
+        const priceId = subscription.items.data[0]?.price?.id
+        // We need to map price ID to plan ID, or get it from metadata
+        // For now, let's try to get it from the subscription metadata or find it by price
+        let planId: string | null = subscription.metadata?.plan_id || null
+
+        // If we don't have plan_id in metadata, try to infer from price
+        if (!planId && priceId) {
+          // This is a fallback - ideally plan_id should be in metadata
+          console.warn('⚠️ Plan ID not found in subscription metadata, attempting to infer from price')
+        }
+
+        if (planId) {
+          const { data: updateData, error: updateError } = await supabase
+            .from('clients')
+            .update({
+              subscription_plan: planId,
+              subscription_status: subscription.status,
+              stripe_subscription_id: subscription.id,
+              subscription_started_at: new Date(subscription.created * 1000).toISOString(),
+            })
+            .eq('id', client.id)
+            .select()
+
+          if (updateError) {
+            console.error('❌ Error updating client subscription:', updateError)
+          } else {
+            console.log(`✅ Subscription created/updated for client ${client.id}: ${planId}`, updateData)
+          }
+        } else {
+          console.warn('⚠️ Could not determine plan_id for subscription:', subscription.id)
+        }
+      } else {
+        console.warn('⚠️ Client not found for customer ID:', customerId)
       }
       break
     }
@@ -69,12 +150,23 @@ export async function POST(request: NextRequest) {
       const subscription = event.data.object as Stripe.Subscription
       const customerId = subscription.customer as string
 
+      console.log('📦 customer.subscription.updated event received:', {
+        subscriptionId: subscription.id,
+        customerId,
+        status: subscription.status,
+      })
+
       // Find client by stripe customer ID
-      const { data: client } = await supabase
+      const { data: client, error: clientError } = await supabase
         .from('clients')
         .select('id')
         .eq('stripe_customer_id', customerId)
-        .single()
+        .maybeSingle()
+
+      if (clientError) {
+        console.error('❌ Error finding client by customer ID:', clientError)
+        break
+      }
 
       if (client) {
         // Check if subscription is set to cancel at period end
@@ -83,12 +175,22 @@ export async function POST(request: NextRequest) {
           status = 'canceling'
         }
         
-        await supabase
+        const { data: updateData, error: updateError } = await supabase
           .from('clients')
           .update({
             subscription_status: status,
+            stripe_subscription_id: subscription.id,
           })
           .eq('id', client.id)
+          .select()
+
+        if (updateError) {
+          console.error('❌ Error updating subscription status:', updateError)
+        } else {
+          console.log(`✅ Subscription status updated for client ${client.id}: ${status}`, updateData)
+        }
+      } else {
+        console.warn('⚠️ Client not found for customer ID:', customerId)
       }
       break
     }
@@ -97,20 +199,39 @@ export async function POST(request: NextRequest) {
       const subscription = event.data.object as Stripe.Subscription
       const customerId = subscription.customer as string
 
-      const { data: client } = await supabase
+      console.log('📦 customer.subscription.deleted event received:', {
+        subscriptionId: subscription.id,
+        customerId,
+      })
+
+      const { data: client, error: clientError } = await supabase
         .from('clients')
         .select('id')
         .eq('stripe_customer_id', customerId)
-        .single()
+        .maybeSingle()
+
+      if (clientError) {
+        console.error('❌ Error finding client by customer ID:', clientError)
+        break
+      }
 
       if (client) {
-        await supabase
+        const { data: updateData, error: updateError } = await supabase
           .from('clients')
           .update({
             subscription_status: 'cancelled',
             subscription_cancelled_at: new Date().toISOString(),
           })
           .eq('id', client.id)
+          .select()
+
+        if (updateError) {
+          console.error('❌ Error updating subscription cancellation:', updateError)
+        } else {
+          console.log(`✅ Subscription cancelled for client ${client.id}`, updateData)
+        }
+      } else {
+        console.warn('⚠️ Client not found for customer ID:', customerId)
       }
       break
     }
@@ -119,22 +240,45 @@ export async function POST(request: NextRequest) {
       const invoice = event.data.object as Stripe.Invoice
       const customerId = invoice.customer as string
 
-      const { data: client } = await supabase
+      console.log('📦 invoice.payment_failed event received:', {
+        invoiceId: invoice.id,
+        customerId,
+      })
+
+      const { data: client, error: clientError } = await supabase
         .from('clients')
         .select('id')
         .eq('stripe_customer_id', customerId)
-        .single()
+        .maybeSingle()
+
+      if (clientError) {
+        console.error('❌ Error finding client by customer ID:', clientError)
+        break
+      }
 
       if (client) {
-        await supabase
+        const { data: updateData, error: updateError } = await supabase
           .from('clients')
           .update({
             subscription_status: 'past_due',
           })
           .eq('id', client.id)
+          .select()
+
+        if (updateError) {
+          console.error('❌ Error updating subscription status to past_due:', updateError)
+        } else {
+          console.log(`✅ Subscription status set to past_due for client ${client.id}`, updateData)
+        }
+      } else {
+        console.warn('⚠️ Client not found for customer ID:', customerId)
       }
       break
     }
+
+    default:
+      console.log(`ℹ️ Unhandled event type: ${event.type}`)
+      break
   }
 
   return NextResponse.json({ received: true })

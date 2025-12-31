@@ -4,40 +4,45 @@
 export const PRICING_PLANS = {
   starter: {
     name: 'Starter',
-    price: 15000, // $150 in cents
-    description: 'For small businesses with simple needs',
+    price: 17500, // $175 in cents
+    description: 'For very small businesses with simple bookkeeping needs',
     features: [
       'Monthly bookkeeping (up to 50 transactions)',
       'Bank reconciliation (1 account)',
-      'Monthly P&L statement',
+      'Monthly Profit & Loss statement',
       'Secure client portal access',
-      'Email support',
+      'Email support (48-hour response time)',
     ],
+    bestFor: 'Sole proprietors, freelancers, and early-stage businesses',
   },
   growth: {
     name: 'Growth',
-    price: 30000, // $300 in cents
-    description: 'For growing businesses',
+    price: 32500, // $325 in cents
+    description: 'For growing businesses that need more visibility',
     features: [
       'Monthly bookkeeping (up to 150 transactions)',
       'Bank & credit card reconciliation (up to 3 accounts)',
-      'Monthly P&L & Balance Sheet',
-      'Quarterly financial review call',
-      'Priority email support',
+      'Monthly Profit & Loss & Balance Sheet',
+      'Quarterly financial review call (30 minutes)',
+      'Secure client portal access',
+      'Priority email support (24-hour response time)',
     ],
+    bestFor: 'Small businesses with regular monthly activity',
+    isPopular: true,
   },
   professional: {
     name: 'Professional',
-    price: 50000, // $500 in cents
-    description: 'For established businesses',
+    price: 55000, // $550 in cents
+    description: 'For established businesses that want ongoing financial insight',
     features: [
       'Monthly bookkeeping (up to 300 transactions)',
       'Bank & credit card reconciliation (up to 5 accounts)',
-      'Monthly P&L & Balance Sheet',
-      'Year-end tax preparation support',
-      'Monthly financial review call',
+      'Monthly Profit & Loss & Balance Sheet',
+      'Monthly financial review call (30 minutes)',
+      'Year-end close & tax-ready financials',
       'Priority support',
     ],
+    bestFor: 'Established businesses and growing teams',
   },
 }
 

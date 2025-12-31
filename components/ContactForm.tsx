@@ -168,7 +168,7 @@ export default function ContactForm() {
           onChange={handleChange}
           rows={5}
           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all resize-none text-gray-900 bg-white"
-          placeholder="What bookkeeping challenges are you facing? What would you like to discuss?"
+          placeholder="What challenges are you facing? What would you like to discuss?"
           required
           disabled={status === 'loading'}
         />

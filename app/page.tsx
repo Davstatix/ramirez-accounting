@@ -2,6 +2,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowRight, CheckCircle, FileText, Calculator, TrendingUp, Shield, Calendar, Star, Award, Zap, BarChart3, Users, Lock, Database, Key, Server, Eye, Fingerprint } from 'lucide-react'
 import ContactForm from '@/components/ContactForm'
+import { PRICING_PLANS, PlanId } from '@/lib/stripe'
 
 export default function Home() {
   return (
@@ -15,6 +16,7 @@ export default function Home() {
             </div>
             <div className="hidden md:flex space-x-8">
               <Link href="#services" className="text-gray-700 hover:text-primary-600">Services</Link>
+              <Link href="#pricing" className="text-gray-700 hover:text-primary-600">Pricing</Link>
               <Link href="#security" className="text-gray-700 hover:text-primary-600">Security</Link>
               <Link href="#about" className="text-gray-700 hover:text-primary-600">About</Link>
               <Link href="#contact" className="text-gray-700 hover:text-primary-600">Contact</Link>
@@ -39,7 +41,7 @@ export default function Home() {
             </h1>
             <p className="text-xl md:text-2xl text-primary-100 mb-10 max-w-3xl mx-auto leading-relaxed">
               Professional bookkeeping that gives you clarity, control, and confidence to make smarter financial decisions. 
-              Let us handle the numbers so you can focus on growing your business.
+              Let us handle the numbers so you can focus on growth.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link
@@ -79,8 +81,8 @@ export default function Home() {
       <section id="services" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <div className="inline-block mb-4">
-              <span className="text-primary-600 font-semibold text-sm uppercase tracking-wide">What We Offer</span>
+            <div className="inline-block mb-5">
+              <span className="text-primary-600 font-bold text-lg md:text-xl uppercase tracking-wide">What We Offer</span>
             </div>
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Comprehensive Bookkeeping Solutions</h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-2">
@@ -125,16 +127,6 @@ export default function Home() {
 
             <div className="bg-gradient-to-br from-white to-primary-50 p-8 rounded-xl border border-gray-200 hover:shadow-xl hover:border-primary-300 transition-all transform hover:-translate-y-1">
               <div className="bg-primary-100 w-14 h-14 rounded-lg flex items-center justify-center mb-4">
-                <Zap className="h-7 w-7 text-primary-600" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Catch-Up Bookkeeping</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Get your books up to date if you&apos;ve fallen behind. We&apos;ll organize and reconcile past periods quickly and accurately.
-              </p>
-            </div>
-
-            <div className="bg-gradient-to-br from-white to-primary-50 p-8 rounded-xl border border-gray-200 hover:shadow-xl hover:border-primary-300 transition-all transform hover:-translate-y-1">
-              <div className="bg-primary-100 w-14 h-14 rounded-lg flex items-center justify-center mb-4">
                 <Shield className="h-7 w-7 text-primary-600" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-3">Fix Messy Books</h3>
@@ -160,8 +152,8 @@ export default function Home() {
       <section className="py-20 bg-gradient-to-b from-white to-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <div className="inline-block mb-4">
-              <span className="text-primary-600 font-semibold text-sm uppercase tracking-wide">Why Choose Us</span>
+            <div className="inline-block mb-5">
+              <span className="text-primary-600 font-bold text-lg md:text-xl uppercase tracking-wide">Why Choose Us</span>
             </div>
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">The Trusted Choice for Growing Businesses</h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
@@ -217,6 +209,132 @@ export default function Home() {
               Schedule Your Free Discovery Call
               <ArrowRight className="h-5 w-5" />
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section id="pricing" className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <div className="inline-block mb-5">
+              <span className="text-primary-600 font-bold text-lg md:text-xl uppercase tracking-wide">Pricing</span>
+            </div>
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Simple, Transparent Pricing</h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Choose the plan that fits your business needs. All plans include secure client portal access and professional bookkeeping services.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 mb-12">
+            {Object.entries(PRICING_PLANS).map(([planId, plan]) => {
+              const isPopular = (plan as any).isPopular
+              return (
+                <div
+                  key={planId}
+                  className={`relative rounded-2xl border-2 p-8 transition-all duration-200 ${
+                    isPopular
+                      ? 'border-primary-500 bg-primary-50 shadow-xl scale-105'
+                      : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-lg'
+                  }`}
+                >
+                  {isPopular && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                      <span className="bg-primary-600 text-white text-sm font-bold px-4 py-1.5 rounded-full flex items-center gap-1">
+                        <Star className="h-4 w-4 fill-current" />
+                        Most Popular
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="text-center mb-6">
+                    <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
+                    <p className="text-sm text-gray-600 mb-4">{plan.description}</p>
+                    <div className="mb-4">
+                      <span className="text-5xl font-bold text-gray-900">
+                        ${(plan.price / 100).toLocaleString()}
+                      </span>
+                      <span className="text-gray-500 text-lg"> / month</span>
+                    </div>
+                  </div>
+
+                  <ul className="space-y-3 mb-8">
+                    {plan.features.map((feature, idx) => (
+                      <li key={idx} className="flex items-start text-sm">
+                        <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+                        <span className="text-gray-700">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {(plan as any).bestFor && (
+                    <div className="mb-6 p-3 bg-gray-50 rounded-lg">
+                      <p className="text-xs text-gray-600">
+                        <strong>Best for:</strong> {(plan as any).bestFor}
+                      </p>
+                    </div>
+                  )}
+
+                  <Link
+                    href="#contact"
+                    className={`block w-full py-3 rounded-lg font-semibold text-center transition-colors ${
+                      isPopular
+                        ? 'bg-primary-600 text-white hover:bg-primary-700'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Get Started
+                  </Link>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Important Notes */}
+          <div className="bg-gray-50 rounded-xl p-8 mb-8">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Important Notes</h3>
+            <ul className="space-y-2 text-gray-700">
+              <li className="flex items-start">
+                <span className="text-primary-600 mr-2">•</span>
+                <span>Additional transactions, accounts, or cleanup work may require an upgrade or be billed separately</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-primary-600 mr-2">•</span>
+                <span>Payroll processing, sales tax filings, and 1099 preparation are not included</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-primary-600 mr-2">•</span>
+                <span>Services are provided on a monthly subscription basis</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-primary-600 mr-2">•</span>
+                <span>We do not provide tax preparation, tax planning, or legal advice</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Optional Add-On Services */}
+          <div className="bg-primary-50 rounded-xl p-8 border border-primary-200">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Optional Add-On Services</h3>
+            <p className="text-gray-700 mb-4 italic">(Available with any plan)</p>
+            <ul className="space-y-2 text-gray-700">
+              <li className="flex items-start">
+                <span className="text-primary-600 mr-2">•</span>
+                <span>Catch-up / cleanup bookkeeping</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-primary-600 mr-2">•</span>
+                <span>Year-end close &amp; CPA handoff (for non-monthly clients)</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-primary-600 mr-2">•</span>
+                <span>Additional transaction volume</span>
+              </li>
+              <li className="flex items-start">
+                <span className="text-primary-600 mr-2">•</span>
+                <span>Additional bank or credit card accounts</span>
+              </li>
+            </ul>
           </div>
         </div>
       </section>
@@ -337,8 +455,8 @@ export default function Home() {
       <section id="about" className="py-20 bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <div className="inline-block mb-4">
-              <span className="text-primary-600 font-semibold text-sm uppercase tracking-wide">Meet The Team</span>
+            <div className="inline-block mb-5">
+              <span className="text-primary-600 font-bold text-lg md:text-xl uppercase tracking-wide">Meet The Team</span>
             </div>
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">The Brothers Behind Ramirez Accounting</h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
@@ -433,8 +551,8 @@ export default function Home() {
       <section id="contact" className="py-20 bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <div className="inline-block mb-4">
-              <span className="text-primary-600 font-semibold text-sm uppercase tracking-wide">Let&apos;s Talk</span>
+            <div className="inline-block mb-5">
+              <span className="text-primary-600 font-bold text-lg md:text-xl uppercase tracking-wide">Let&apos;s Talk</span>
             </div>
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Book Your Free Discovery Call</h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
@@ -483,7 +601,7 @@ export default function Home() {
             <div>
               <h3 className="text-2xl font-bold mb-4">Ramirez Accounting</h3>
               <p className="text-gray-400">
-                Professional bookkeeping services for your business.
+                Simplifying your finances so you can focus on growth.
               </p>
             </div>
             <div>

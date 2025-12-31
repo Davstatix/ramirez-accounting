@@ -1232,7 +1232,7 @@ function PlanSelectionStep({
       <div className="grid md:grid-cols-3 gap-6">
         {plans.map(([planId, plan]) => {
           const isSelected = selectedPlan === planId
-          const isPopular = planId === 'growth'
+          const isPopular = (plan as any).isPopular || planId === 'growth'
           
           return (
             <div
@@ -1273,6 +1273,14 @@ function PlanSelectionStep({
                   </li>
                 ))}
               </ul>
+
+              {(plan as any).bestFor && (
+                <div className="mb-6 p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-gray-600">
+                    <strong>Best for:</strong> {(plan as any).bestFor}
+                  </p>
+                </div>
+              )}
 
               <div className={`w-full py-3 rounded-lg font-semibold text-center transition-colors ${
                 isSelected

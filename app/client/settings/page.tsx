@@ -455,7 +455,10 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {client.stripe_customer_id ? (
+          {client.subscription_status && 
+           client.subscription_status !== 'none' && 
+           client.subscription_plan &&
+           client.stripe_customer_id ? (
             <button
               onClick={handleManageSubscription}
               disabled={portalLoading}
@@ -478,14 +481,69 @@ export default function SettingsPage() {
               )}
             </button>
           ) : (
-            <p className="text-gray-500 text-sm">
-              No subscription found. Please contact support if you believe this is an error.
-            </p>
+            <div className="space-y-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div>
+                <p className="text-gray-700 font-medium mb-2">
+                  {client.stripe_customer_id 
+                    ? 'Subscription status not found in our system.'
+                    : 'No subscription found.'}
+                </p>
+                <p className="text-gray-600 text-sm mb-4">
+                  If you recently completed payment, click the button below to sync your subscription from Stripe.
+                </p>
+              </div>
+              <button
+                onClick={async () => {
+                  if (!client) return
+                  setPortalLoading(true)
+                  try {
+                    const response = await fetch('/api/stripe/sync-subscription', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ clientId: client.id }),
+                    })
+                    const data = await response.json()
+                    if (response.ok) {
+                      alert('Subscription synced successfully! Refreshing...')
+                      await loadClient() // Reload client data
+                    } else {
+                      alert(`Failed to sync: ${data.error || 'Unknown error'}`)
+                    }
+                  } catch (err: any) {
+                    alert(`Error: ${err.message}`)
+                  } finally {
+                    setPortalLoading(false)
+                  }
+                }}
+                disabled={portalLoading}
+                className="w-full px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 text-base font-semibold flex items-center justify-center shadow-md"
+              >
+                {portalLoading ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Syncing Subscription...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="h-5 w-5 mr-2" />
+                    Sync Subscription from Stripe
+                  </>
+                )}
+              </button>
+            </div>
           )}
 
-          <p className="text-xs text-gray-500 mt-4">
-            You can update your payment method, view billing history, or cancel your subscription through the Stripe billing portal.
-          </p>
+          {client.subscription_status && 
+           client.subscription_status !== 'none' && 
+           client.subscription_plan &&
+           client.stripe_customer_id && (
+            <p className="text-xs text-gray-500 mt-4">
+              You can update your payment method, view billing history, or cancel your subscription through the Stripe billing portal.
+            </p>
+          )}
         </div>
       </div>
     </div>
