@@ -57,14 +57,14 @@ const DOCUMENT_TYPES: DocumentType[] = [
   {
     type: 'tax_id_ein',
     label: 'Tax ID (EIN)',
-    description: 'Employer Identification Number for your business',
-    required: true,
+    description: 'Employer Identification Number for your business (required if you have an EIN)',
+    required: false, // Either EIN or SSN is required, not both
   },
   {
     type: 'tax_id_ssn',
     label: 'Tax ID (SSN)',
-    description: 'Social Security Number (if sole proprietor)',
-    required: true,
+    description: 'Social Security Number (required if sole proprietor, no EIN)',
+    required: false, // Either EIN or SSN is required, not both
   },
   {
     type: 'bank_statement',
@@ -94,6 +94,8 @@ export default function OnboardingPage() {
   })
   const [selectedPlan, setSelectedPlan] = useState<PlanId | null>(null)
   const [processingPayment, setProcessingPayment] = useState(false)
+  const [bypassPayment, setBypassPayment] = useState(false)
+  const [trialDays, setTrialDays] = useState<number | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -154,10 +156,10 @@ export default function OnboardingPage() {
         return
       }
 
-      // Get client with subscription status
+      // Get client with subscription status and invite code info
       const { data: client, error: clientError } = await supabase
         .from('clients')
-        .select('id, onboarding_status, user_id, subscription_status, subscription_plan, stripe_subscription_id')
+        .select('id, onboarding_status, user_id, subscription_status, subscription_plan, stripe_subscription_id, invite_code_id')
         .eq('user_id', user.id)
         .single()
 
@@ -174,6 +176,20 @@ export default function OnboardingPage() {
 
       console.log('Client loaded:', { id: client.id, user_id: client.user_id, current_user: user.id })
       setClientId(client.id)
+
+      // Check if invite code has bypass_payment enabled
+      if (client.invite_code_id) {
+        const { data: inviteCode } = await supabase
+          .from('invite_codes')
+          .select('bypass_payment, trial_days')
+          .eq('id', client.invite_code_id)
+          .single()
+        
+        if (inviteCode?.bypass_payment) {
+          setBypassPayment(true)
+          setTrialDays(inviteCode.trial_days)
+        }
+      }
 
       // If already completed, redirect immediately
       if (client.onboarding_status === 'completed') {
@@ -732,13 +748,28 @@ export default function OnboardingPage() {
 
     try {
       // Check if all required documents are uploaded
+      // EIN and SSN count as one requirement (either/or)
       const requiredUploaded = requiredDocs.filter(
         (doc) => doc.is_required && (doc.status === 'uploaded' || doc.status === 'verified')
       )
-      const requiredTotal = requiredDocs.filter((doc) => doc.is_required)
+      
+      // Check if at least one of EIN or SSN is uploaded
+      const einDoc = requiredDocs.find(d => d.document_type === 'tax_id_ein')
+      const ssnDoc = requiredDocs.find(d => d.document_type === 'tax_id_ssn')
+      const hasTaxId = (einDoc && (einDoc.status === 'uploaded' || einDoc.status === 'verified')) ||
+                       (ssnDoc && (ssnDoc.status === 'uploaded' || ssnDoc.status === 'verified'))
+      
+      // Total required: engagement_letter, tax_id (EIN or SSN), bank_statement, business_license = 4
+      const requiredTotalCount = 4
+      const uploadedCount = requiredUploaded.length + (hasTaxId ? 1 : 0)
 
-      if (requiredUploaded.length < requiredTotal.length) {
-        alert(`Please upload all required documents. You have uploaded ${requiredUploaded.length} of ${requiredTotal.length} required documents.`)
+      if (uploadedCount < requiredTotalCount) {
+        const missing = requiredTotalCount - uploadedCount
+        if (!hasTaxId) {
+          alert(`Please upload all required documents. You need to upload either a Tax ID (EIN) or Tax ID (SSN), plus ${missing - 1} other required document(s).`)
+        } else {
+          alert(`Please upload all required documents. You have uploaded ${uploadedCount} of ${requiredTotalCount} required documents.`)
+        }
         return
       }
 
@@ -964,6 +995,31 @@ export default function OnboardingPage() {
                   </div>
                 </div>
               )}
+              {bypassPayment && (
+                <div className={`mb-6 border rounded-lg p-4 flex items-start gap-3 ${
+                  trialDays 
+                    ? 'bg-yellow-50 border-yellow-200' 
+                    : 'bg-green-50 border-green-200'
+                }`}>
+                  <CheckCircle className={`h-5 w-5 mt-0.5 flex-shrink-0 ${
+                    trialDays ? 'text-yellow-600' : 'text-green-600'
+                  }`} />
+                  <div>
+                    <h4 className={`font-semibold mb-1 ${
+                      trialDays ? 'text-yellow-900' : 'text-green-900'
+                    }`}>
+                      {trialDays ? `Free ${trialDays}-Day Trial` : 'Free Account'}
+                    </h4>
+                    <p className={`text-sm ${
+                      trialDays ? 'text-yellow-700' : 'text-green-700'
+                    }`}>
+                      {trialDays 
+                        ? `You'll have ${trialDays} days of free access. After the trial, you'll need to set up payment to continue.`
+                        : 'Payment has been waived for your account. Select your plan below and continue.'}
+                    </p>
+                  </div>
+                </div>
+              )}
               <PlanSelectionStep
                 selectedPlan={selectedPlan}
                 setSelectedPlan={setSelectedPlan}
@@ -996,16 +1052,31 @@ export default function OnboardingPage() {
                 // Validate before moving forward
                 if (currentStep === 1) {
                   // Check if all required documents are uploaded before moving to step 2
+                  // EIN and SSN count as one requirement (either/or)
                   const requiredUploaded = requiredDocs.filter(
                     (doc) => doc.is_required && (doc.status === 'uploaded' || doc.status === 'verified')
                   )
-                  const requiredTotal = requiredDocs.filter((doc) => doc.is_required)
                   
-                  if (requiredUploaded.length < requiredTotal.length) {
-                    const missing = requiredTotal.length - requiredUploaded.length
-                    const errorMsg = missing === 1 
-                      ? `Please upload ${missing} more required document to continue.`
-                      : `Please upload ${missing} more required documents to continue.`
+                  // Check if at least one of EIN or SSN is uploaded
+                  const einDoc = requiredDocs.find(d => d.document_type === 'tax_id_ein')
+                  const ssnDoc = requiredDocs.find(d => d.document_type === 'tax_id_ssn')
+                  const hasTaxId = (einDoc && (einDoc.status === 'uploaded' || einDoc.status === 'verified')) ||
+                                   (ssnDoc && (ssnDoc.status === 'uploaded' || ssnDoc.status === 'verified'))
+                  
+                  // Total required: engagement_letter, tax_id (EIN or SSN), bank_statement, business_license = 4
+                  const requiredTotalCount = 4
+                  const uploadedCount = requiredUploaded.length + (hasTaxId ? 1 : 0)
+                  
+                  if (uploadedCount < requiredTotalCount) {
+                    const missing = requiredTotalCount - uploadedCount
+                    let errorMsg = ''
+                    if (!hasTaxId) {
+                      errorMsg = `Please upload either a Tax ID (EIN) or Tax ID (SSN), plus ${missing - 1} other required document(s) to continue.`
+                    } else {
+                      errorMsg = missing === 1 
+                        ? `Please upload ${missing} more required document to continue.`
+                        : `Please upload ${missing} more required documents to continue.`
+                    }
                     setErrorMessage(errorMsg)
                     setTimeout(() => setErrorMessage(null), 5000)
                     return
@@ -1063,7 +1134,64 @@ export default function OnboardingPage() {
                     return
                   }
                   
-                  // Redirect to Stripe checkout
+                  // If bypass_payment is enabled, skip Stripe and create subscription directly
+                  if (bypassPayment) {
+                    setProcessingPayment(true)
+                    try {
+                      // Get invite code to check trial_days
+                      const { data: clientData } = await supabase
+                        .from('clients')
+                        .select('invite_code_id')
+                        .eq('id', clientId)
+                        .single()
+                      
+                      let trialEnd: string | null = null
+                      let subscriptionStatus = 'active'
+                      
+                      if (clientData?.invite_code_id) {
+                        const { data: inviteCode } = await supabase
+                          .from('invite_codes')
+                          .select('trial_days')
+                          .eq('id', clientData.invite_code_id)
+                          .single()
+                        
+                        // If trial_days is set, calculate trial_end date
+                        if (inviteCode?.trial_days) {
+                          const trialEndDate = new Date()
+                          trialEndDate.setDate(trialEndDate.getDate() + inviteCode.trial_days)
+                          trialEnd = trialEndDate.toISOString()
+                          subscriptionStatus = 'trialing' // Mark as trialing
+                        }
+                      }
+                      
+                      // Create subscription record without Stripe
+                      const { error: subError } = await supabase
+                        .from('clients')
+                        .update({
+                          subscription_plan: selectedPlan,
+                          subscription_status: subscriptionStatus,
+                          trial_end: trialEnd,
+                          stripe_subscription_id: null, // No Stripe subscription for free accounts/trials
+                          stripe_customer_id: null,
+                        })
+                        .eq('id', clientId)
+                      
+                      if (subError) throw subError
+                      
+                      setProcessingPayment(false)
+                      // Proceed to review step
+                      setCurrentStep(4)
+                      return
+                    } catch (err: any) {
+                      console.error('Error creating free subscription:', err)
+                      setErrorMessage(err.message || 'Failed to set up account. Please try again.')
+                      setTimeout(() => setErrorMessage(null), 5000)
+                      setProcessingPayment(false)
+                      return
+                    }
+                  }
+                  
+                  // Normal payment flow - redirect to Stripe checkout
                   setProcessingPayment(true)
                   try {
                     const response = await fetch('/api/stripe/create-checkout', {
@@ -1143,14 +1271,22 @@ function DocumentsStep({
   uploading: string | null
 }) {
   const [dragActive, setDragActive] = useState<string | null>(null)
+  // Count required documents (EIN and SSN count as one requirement - either/or)
   const requiredUploaded = requiredDocs.filter(
     (doc) => doc.is_required && (doc.status === 'uploaded' || doc.status === 'verified')
   )
-  // Always use 5 as the expected total (engagement_letter, tax_id_ein, tax_id_ssn, bank_statement, business_license)
-  // This ensures the count is always correct even if database is missing a document
-  const requiredTotalCount = 5
-  const requiredTotal = requiredDocs.filter((doc) => doc.is_required)
-  const progress = requiredTotalCount > 0 ? (requiredUploaded.length / requiredTotalCount) * 100 : 0
+  
+  // Check if at least one of EIN or SSN is uploaded
+  const einDoc = requiredDocs.find(d => d.document_type === 'tax_id_ein')
+  const ssnDoc = requiredDocs.find(d => d.document_type === 'tax_id_ssn')
+  const hasTaxId = (einDoc && (einDoc.status === 'uploaded' || einDoc.status === 'verified')) ||
+                   (ssnDoc && (ssnDoc.status === 'uploaded' || ssnDoc.status === 'verified'))
+  
+  // Total required: engagement_letter, tax_id (EIN or SSN), bank_statement, business_license = 4
+  const requiredTotalCount = 4
+  // Count uploaded: required docs + tax ID if either is uploaded
+  const uploadedCount = requiredUploaded.length + (hasTaxId ? 1 : 0)
+  const progress = requiredTotalCount > 0 ? (uploadedCount / requiredTotalCount) * 100 : 0
 
   const handleDrag = (e: React.DragEvent, documentType: string) => {
     e.preventDefault()
@@ -1177,7 +1313,7 @@ function DocumentsStep({
     <div>
       <h2 className="text-3xl font-bold text-gray-900 mb-3">Required Documents</h2>
       <p className="text-lg text-gray-600 mb-6">
-        Upload your required documents below. All documents are required to proceed.
+        Upload your required documents below. You must upload either a Tax ID (EIN) or Tax ID (SSN), not both.
       </p>
       
       {/* Progress Bar */}
@@ -1189,7 +1325,7 @@ function DocumentsStep({
       </div>
       <div className="flex justify-between text-sm text-gray-600 mb-6">
         <span className="font-medium">
-          {requiredUploaded.length} of {requiredTotalCount} required documents uploaded
+          {uploadedCount} of {requiredTotalCount} required documents uploaded
         </span>
         <span className="font-semibold text-primary-600">{Math.round(progress)}%</span>
       </div>
@@ -1240,9 +1376,15 @@ function DocumentsStep({
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-gray-900 text-base flex items-center">
                           {docType.label}
-                          <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-700 rounded-full">
-                            Required
-                          </span>
+                          {(docType.type === 'tax_id_ein' || docType.type === 'tax_id_ssn') ? (
+                            <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 rounded-full">
+                              Either/Or
+                            </span>
+                          ) : (
+                            <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-700 rounded-full">
+                              Required
+                            </span>
+                          )}
                         </h3>
                         <p className="text-sm text-gray-500 mt-1">{docType.description}</p>
                       </div>
@@ -1461,7 +1603,8 @@ function PlanSelectionStep({
   processingPayment: boolean
   setProcessingPayment: (processing: boolean) => void
 }) {
-  const plans = Object.entries(PRICING_PLANS) as [PlanId, typeof PRICING_PLANS[PlanId]][]
+  const plans = Object.entries(PRICING_PLANS)
+    .filter(([planId]) => planId !== 'test') as [PlanId, typeof PRICING_PLANS[PlanId]][]
 
   return (
     <div>
@@ -1474,7 +1617,6 @@ function PlanSelectionStep({
         {plans.map(([planId, plan]) => {
           const isSelected = selectedPlan === planId
           const isPopular = (plan as any).isPopular || planId === 'growth'
-          const isTest = (plan as any).isTest
           
           return (
             <div
@@ -1482,12 +1624,8 @@ function PlanSelectionStep({
               onClick={() => !processingPayment && setSelectedPlan(planId)}
               className={`relative rounded-2xl border-2 p-6 cursor-pointer transition-all duration-200 ${
                 isSelected
-                  ? isTest 
-                    ? 'border-yellow-500 bg-yellow-50 shadow-lg scale-[1.02]'
-                    : 'border-primary-500 bg-primary-50 shadow-lg scale-[1.02]'
-                  : isTest
-                    ? 'border-yellow-300 bg-yellow-50/50 hover:border-yellow-400 hover:shadow-md'
-                    : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'
+                  ? 'border-primary-500 bg-primary-50 shadow-lg scale-[1.02]'
+                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'
               } ${processingPayment ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {isPopular && (
@@ -1495,13 +1633,6 @@ function PlanSelectionStep({
                   <span className="bg-primary-600 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center">
                     <Star className="h-3 w-3 mr-1 fill-current" />
                     Most Popular
-                  </span>
-                </div>
-              )}
-              {isTest && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="bg-yellow-500 text-white text-xs font-bold px-3 py-1 rounded-full">
-                    TEST ONLY
                   </span>
                 </div>
               )}

@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
 
       if (clientId && planId && session.mode === 'subscription') {
         // Update client with subscription info
+        // Clear trial_end if it exists (trial is now converted to paid)
         const { data, error } = await supabase
           .from('clients')
           .update({
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
             stripe_customer_id: session.customer as string,
             stripe_subscription_id: session.subscription as string,
             subscription_started_at: new Date().toISOString(),
+            trial_end: null, // Clear trial_end when subscription is created
           })
           .eq('id', clientId)
           .select()
@@ -181,8 +183,10 @@ export async function POST(request: NextRequest) {
             .update({
               subscription_plan: planId,
               subscription_status: subscription.status,
+              stripe_customer_id: customerId,
               stripe_subscription_id: subscription.id,
               subscription_started_at: new Date(subscription.created * 1000).toISOString(),
+              trial_end: null, // Clear trial_end when subscription is created
             })
             .eq('id', client.id)
             .select()

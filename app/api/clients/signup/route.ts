@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
         phone: phone || null,
         company_name: company_name || null,
         onboarding_status: 'pending',
+        invite_code_id: codeData.id, // Store invite code ID for bypass_payment check
       })
       .select()
       .single()
@@ -90,11 +91,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Initialize required documents for onboarding (all 5 are required)
+    // Initialize required documents for onboarding
+    // Note: EIN and SSN are not both required - client must upload either one
         const requiredDocs = [
           { document_type: 'engagement_letter', is_required: true },
-          { document_type: 'tax_id_ein', is_required: true },
-          { document_type: 'tax_id_ssn', is_required: true },
+          { document_type: 'tax_id_ein', is_required: false }, // Either EIN or SSN is required, not both
+          { document_type: 'tax_id_ssn', is_required: false }, // Either EIN or SSN is required, not both
           { document_type: 'bank_statement', is_required: true },
           { document_type: 'business_license', is_required: true },
         ]

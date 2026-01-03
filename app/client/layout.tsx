@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   Settings
 } from 'lucide-react'
+import TrialExpiredModal from './components/TrialExpiredModal'
 
 export default function ClientLayout({
   children,
@@ -26,6 +27,8 @@ export default function ClientLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [roleChecked, setRoleChecked] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [clientId, setClientId] = useState<string | null>(null)
+  const [trialExpired, setTrialExpired] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -64,9 +67,47 @@ export default function ClientLayout({
 
       setRoleChecked(true)
       loadUnreadCount()
+      checkTrialExpiration()
     } catch (error) {
       setRoleChecked(true)
     }
+  }
+
+  const checkTrialExpiration = async () => {
+    if (!user) return
+
+    try {
+      const { data: client, error } = await supabase
+        .from('clients')
+        .select('id, subscription_status, trial_end, subscription_plan, stripe_subscription_id')
+        .eq('user_id', user.id)
+        .single()
+
+      if (error || !client) return
+
+      setClientId(client.id)
+
+      // Check if trial has expired
+      // Trial is expired if:
+      // 1. subscription_status is 'trialing' AND trial_end exists AND trial_end is in the past
+      // 2. AND there's no active Stripe subscription
+      if (
+        client.subscription_status === 'trialing' &&
+        client.trial_end &&
+        new Date(client.trial_end) < new Date() &&
+        !client.stripe_subscription_id
+      ) {
+        setTrialExpired(true)
+      }
+    } catch (error) {
+      console.error('Error checking trial expiration:', error)
+    }
+  }
+
+  const handlePaymentComplete = async () => {
+    // Refresh client data after payment
+    await checkTrialExpiration()
+    // The modal will close automatically when trialExpired becomes false
   }
 
   const loadUnreadCount = async () => {
@@ -96,8 +137,14 @@ export default function ClientLayout({
   // Refresh unread count periodically and on focus
   useEffect(() => {
     if (roleChecked && user) {
-      const interval = setInterval(loadUnreadCount, 10000) // every 10 seconds
-      const handleFocus = () => loadUnreadCount()
+      const interval = setInterval(() => {
+        loadUnreadCount()
+        checkTrialExpiration() // Also check trial expiration periodically
+      }, 10000) // every 10 seconds
+      const handleFocus = () => {
+        loadUnreadCount()
+        checkTrialExpiration()
+      }
       window.addEventListener('focus', handleFocus)
       return () => {
         clearInterval(interval)
@@ -105,6 +152,23 @@ export default function ClientLayout({
       }
     }
   }, [roleChecked, user])
+
+  // Check for payment completion from Stripe redirect
+  useEffect(() => {
+    if (typeof window !== 'undefined' && roleChecked) {
+      const urlParams = new URLSearchParams(window.location.search)
+      const subscription = urlParams.get('subscription')
+      
+      if (subscription === 'success') {
+        // Payment completed, wait a moment for webhook to process, then refresh
+        setTimeout(() => {
+          checkTrialExpiration()
+        }, 2000) // Give webhook 2 seconds to process
+        // Clean up URL
+        window.history.replaceState({}, '', window.location.pathname)
+      }
+    }
+  }, [roleChecked])
 
   if (loading || !roleChecked) {
     return (
@@ -211,6 +275,14 @@ export default function ClientLayout({
         {/* Page content */}
         <main className="p-6">{children}</main>
       </div>
+
+      {/* Trial Expired Modal - Blocks all access */}
+      {trialExpired && clientId && (
+        <TrialExpiredModal 
+          clientId={clientId} 
+          onPaymentComplete={handlePaymentComplete}
+        />
+      )}
     </div>
   )
 }

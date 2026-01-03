@@ -235,7 +235,9 @@ export default function Home() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 mb-12">
-            {Object.entries(PRICING_PLANS).map(([planId, plan]) => {
+            {Object.entries(PRICING_PLANS)
+              .filter(([planId]) => planId !== 'test')
+              .map(([planId, plan]) => {
               const isPopular = (plan as any).isPopular
               return (
                 <div

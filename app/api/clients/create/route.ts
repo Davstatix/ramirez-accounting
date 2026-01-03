@@ -66,10 +66,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: clientError.message }, { status: 400 })
     }
 
-    // Initialize required documents for onboarding (all 4 are required)
+    // Initialize required documents for onboarding
+    // Note: EIN and SSN are not both required - client must upload either one
     const requiredDocs = [
-      { document_type: 'tax_id_ein', is_required: true },
-      { document_type: 'tax_id_ssn', is_required: true },
+      { document_type: 'engagement_letter', is_required: true },
+      { document_type: 'tax_id_ein', is_required: false }, // Either EIN or SSN is required, not both
+      { document_type: 'tax_id_ssn', is_required: false }, // Either EIN or SSN is required, not both
       { document_type: 'bank_statement', is_required: true },
       { document_type: 'business_license', is_required: true },
     ]

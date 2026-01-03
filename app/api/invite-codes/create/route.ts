@@ -35,6 +35,8 @@ export async function POST(request: NextRequest) {
     const expires_days = parseInt(formData.get('expires_days') as string) || 7
     const created_by = formData.get('created_by') as string | null
     const recommended_plan = formData.get('recommended_plan') as string | null
+    const bypass_payment = formData.get('bypass_payment') === 'true'
+    const trial_days = formData.get('trial_days') ? parseInt(formData.get('trial_days') as string) : null
     const engagementLetterFile = formData.get('engagement_letter') as File | null
 
     // Upload engagement letter if provided
@@ -98,6 +100,8 @@ export async function POST(request: NextRequest) {
         notes: notes || null,
         recommended_plan: recommended_plan || null,
         engagement_letter_path: engagementLetterPath,
+        bypass_payment: bypass_payment,
+        trial_days: trial_days,
         expires_at: expires_at.toISOString(),
         created_by: created_by || null,
       })

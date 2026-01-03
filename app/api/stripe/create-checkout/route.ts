@@ -198,8 +198,8 @@ export async function POST(request: NextRequest) {
           quantity: 1,
         },
       ],
-      success_url: `${baseUrl}/client/onboarding?step=4&subscription=success`,
-      cancel_url: `${baseUrl}/client/onboarding?step=3&subscription=cancelled&error=payment_cancelled`,
+      success_url: `${baseUrl}/client?subscription=success`,
+      cancel_url: `${baseUrl}/client?subscription=cancelled&error=payment_cancelled`,
       metadata: {
         client_id: clientId,
         plan_id: planId,

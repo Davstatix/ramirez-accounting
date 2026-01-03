@@ -1448,7 +1448,9 @@ export default function DemoPage() {
                       </p>
 
                       <div className="grid md:grid-cols-3 gap-6">
-                        {Object.entries(PRICING_PLANS).map(([planId, plan]) => (
+                        {Object.entries(PRICING_PLANS)
+                          .filter(([planId]) => planId !== 'test')
+                          .map(([planId, plan]) => (
                           <div
                             key={planId}
                             onClick={() => setOnboardingSelectedPlan(planId as PlanId)}

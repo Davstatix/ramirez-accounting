@@ -13,6 +13,8 @@ interface InviteCode {
   notes: string | null
   recommended_plan: string | null
   engagement_letter_path: string | null
+  bypass_payment: boolean
+  trial_days: number | null
   used: boolean
   used_at: string | null
   expires_at: string
@@ -31,6 +33,8 @@ export default function InviteCodesPage() {
     notes: '',
     expires_days: 7,
     recommended_plan: '' as PlanId | '',
+    bypass_payment: false,
+    trial_days: null as number | null,
   })
   const [engagementLetter, setEngagementLetter] = useState<File | null>(null)
   const [uploadingLetter, setUploadingLetter] = useState(false)
@@ -71,6 +75,10 @@ export default function InviteCodesPage() {
       formDataToSend.append('notes', formData.notes)
       formDataToSend.append('expires_days', formData.expires_days.toString())
       formDataToSend.append('recommended_plan', formData.recommended_plan)
+      formDataToSend.append('bypass_payment', formData.bypass_payment.toString())
+      if (formData.trial_days !== null) {
+        formDataToSend.append('trial_days', formData.trial_days.toString())
+      }
       formDataToSend.append('created_by', user?.id || '')
       if (engagementLetter) {
         formDataToSend.append('engagement_letter', engagementLetter)
@@ -84,10 +92,10 @@ export default function InviteCodesPage() {
       const result = await response.json()
       if (!response.ok) throw new Error(result.error)
 
-      setCodes([result.invite_code, ...codes])
-      setShowForm(false)
-      setFormData({ client_name: '', email: '', notes: '', expires_days: 7, recommended_plan: '' })
-      setEngagementLetter(null)
+          setCodes([result.invite_code, ...codes])
+          setShowForm(false)
+          setFormData({ client_name: '', email: '', notes: '', expires_days: 7, recommended_plan: '', bypass_payment: false, trial_days: null })
+          setEngagementLetter(null)
       
       // Show feedback about email sending
       if (formData.email) {
@@ -278,7 +286,9 @@ export default function InviteCodesPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-gray-900"
                 >
                   <option value="">Select a plan (optional)</option>
-                  {Object.entries(PRICING_PLANS).map(([planId, plan]) => (
+                  {Object.entries(PRICING_PLANS)
+                    .filter(([planId]) => planId !== 'test')
+                    .map(([planId, plan]) => (
                     <option key={planId} value={planId}>
                       {plan.name} - ${(plan.price / 100).toLocaleString()}/month
                     </option>
@@ -376,6 +386,44 @@ export default function InviteCodesPage() {
                 The engagement letter will be attached to the invite email
               </p>
             </div>
+            <div className="space-y-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="bypass_payment"
+                  checked={formData.bypass_payment}
+                  onChange={(e) => setFormData({ ...formData, bypass_payment: e.target.checked, trial_days: e.target.checked ? formData.trial_days : null })}
+                  className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                />
+                <label htmlFor="bypass_payment" className="text-sm font-medium text-gray-700 cursor-pointer">
+                  Bypass Payment (Free Account or Trial)
+                </label>
+              </div>
+              {formData.bypass_payment && (
+                <div className="ml-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Trial Duration (optional)
+                  </label>
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="number"
+                      min="1"
+                      max="365"
+                      value={formData.trial_days || ''}
+                      onChange={(e) => setFormData({ ...formData, trial_days: e.target.value ? parseInt(e.target.value) : null })}
+                      placeholder="Leave empty for permanent free"
+                      className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-gray-900"
+                    />
+                    <span className="text-sm text-gray-600">days</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.trial_days 
+                      ? `Client will get ${formData.trial_days} days free trial, then need to pay`
+                      : 'Client will get permanent free access (no payment required)'}
+                  </p>
+                </div>
+              )}
+            </div>
             <div className="flex space-x-3">
               <button
                 type="submit"
@@ -425,6 +473,15 @@ export default function InviteCodesPage() {
                         <code className="bg-primary-100 text-primary-800 px-3 py-1 rounded font-mono text-lg font-bold">
                           {code.code}
                         </code>
+                        {code.bypass_payment && (
+                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                            code.trial_days 
+                              ? 'bg-yellow-100 text-yellow-800' 
+                              : 'bg-green-100 text-green-800'
+                          }`}>
+                            {code.trial_days ? `${code.trial_days}d Trial` : 'Free'}
+                          </span>
+                        )}
                         <button
                           onClick={() => copyCode(code.code)}
                           className="text-gray-400 hover:text-gray-600"
