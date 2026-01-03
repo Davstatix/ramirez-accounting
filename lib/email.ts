@@ -120,9 +120,10 @@ export async function sendInviteCodeEmail(
   clientName: string, 
   inviteCode: string, 
   expiresAt: Date,
-  recommendedPlan?: { name: string; price: number; description: string } | null
+  recommendedPlan?: { name: string; price: number; description: string } | null,
+  engagementLetter?: { path: string; name: string } | null
 ) {
-  console.log('📧 Sending invite code email:', { to, clientName, inviteCode, expiresAt, recommendedPlan })
+  console.log('📧 Sending invite code email:', { to, clientName, inviteCode, expiresAt, recommendedPlan, engagementLetter })
   
   if (!process.env.RESEND_API_KEY) {
     console.error('❌ RESEND_API_KEY is not set!')
@@ -134,11 +135,43 @@ export async function sendInviteCodeEmail(
     const replyToEmail = process.env.ADMIN_EMAIL || 'david@ramirezaccountingny.com'
     console.log('📧 Sending invite code email with replyTo:', replyToEmail)
     
+    // Download engagement letter from Supabase Storage if provided
+    let attachment: { filename: string; content: string } | undefined
+    if (engagementLetter) {
+      try {
+        const { createAdminClient } = await import('./supabase-server')
+        const supabase = createAdminClient()
+        
+        const { data, error } = await supabase.storage
+          .from('documents')
+          .download(engagementLetter.path)
+        
+        if (error) {
+          console.error('Error downloading engagement letter:', error)
+        } else if (data) {
+          // Convert Blob to base64
+          const arrayBuffer = await data.arrayBuffer()
+          const buffer = Buffer.from(arrayBuffer)
+          const base64Content = buffer.toString('base64')
+          
+          attachment = {
+            filename: engagementLetter.name,
+            content: base64Content,
+          }
+          console.log('✅ Engagement letter prepared for attachment')
+        }
+      } catch (err: any) {
+        console.error('Error preparing engagement letter attachment:', err)
+        // Continue without attachment if there's an error
+      }
+    }
+    
     const result = await resend.emails.send({
       from: FROM_EMAIL,
       to,
       replyTo: replyToEmail, // Replies go to your business email (domain verified)
       subject: 'Thank You for the Discovery Call - Your Invite Code',
+      attachments: attachment ? [attachment] : undefined,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #0ea5e9; border-bottom: 2px solid #0ea5e9; padding-bottom: 10px;">
@@ -184,12 +217,21 @@ export async function sendInviteCodeEmail(
               <li>Enter your invite code when prompted (or it will be pre-filled)</li>
               <li>Complete the onboarding process:
                 <ul style="margin-top: 8px;">
-                  <li>Upload required documents (Tax ID, Bank Statement, Business License)</li>
+                  <li>Review and sign the engagement letter${engagementLetter ? ' (attached to this email)' : ''}</li>
+                  <li>Upload required documents (Tax ID, Bank Statement, Business License, Signed Engagement Letter)</li>
                   <li>Provide QuickBooks access information (if applicable)</li>
                   <li>Select your subscription plan${recommendedPlan ? ` (we recommend the ${recommendedPlan.name} Plan)` : ''}</li>
                   <li>Review and complete setup</li>
                 </ul>
               </li>
+              ${engagementLetter ? `
+              <div style="background-color: #fff7ed; border-left: 4px solid #f59e0b; padding: 16px; margin: 24px 0;">
+                <h3 style="color: #111827; margin-top: 0; margin-bottom: 8px;">📄 Engagement Letter</h3>
+                <p style="color: #374151; margin: 0;">
+                  Please review and sign the engagement letter attached to this email. You'll need to upload the signed copy during onboarding.
+                </p>
+              </div>
+              ` : ''}
             </ol>
           </div>
           
@@ -508,6 +550,67 @@ export async function sendAdminCalendarBookingEmail(clientName: string, clientEm
     return { success: true }
   } catch (error) {
     console.error('Error sending admin calendar booking email:', error)
+    return { success: false, error }
+  }
+}
+
+export async function sendAdminSubscriptionChangeEmail(
+  clientName: string,
+  clientEmail: string,
+  changeType: 'upgrade' | 'downgrade' | 'cancel' | 'reactivate',
+  oldPlan: string | null,
+  newPlan: string | null,
+  subscriptionId: string
+) {
+  try {
+    const changeLabels = {
+      upgrade: 'Upgraded',
+      downgrade: '⚠️ DOWNGRADED',
+      cancel: 'Cancelled',
+      reactivate: 'Reactivated',
+    }
+
+    const changeColors = {
+      upgrade: '#10b981', // green
+      downgrade: '#ef4444', // red
+      cancel: '#f59e0b', // amber
+      reactivate: '#3b82f6', // blue
+    }
+
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_REPLY_EMAIL,
+      replyTo: ADMIN_REPLY_EMAIL,
+      subject: `Subscription ${changeLabels[changeType]}: ${clientName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: ${changeColors[changeType]};">Subscription ${changeLabels[changeType]}</h1>
+          <p><strong>Client:</strong> ${clientName} (${clientEmail})</p>
+          <p><strong>Change Type:</strong> ${changeLabels[changeType]}</p>
+          ${oldPlan ? `<p><strong>Previous Plan:</strong> ${oldPlan}</p>` : ''}
+          ${newPlan ? `<p><strong>New Plan:</strong> ${newPlan}</p>` : ''}
+          <p><strong>Stripe Subscription ID:</strong> ${subscriptionId}</p>
+          ${changeType === 'downgrade' ? `
+            <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 12px; margin: 20px 0;">
+              <p style="color: #991b1b; margin: 0;"><strong>⚠️ IMPORTANT:</strong> Client has downgraded their subscription. 
+              Please review their account to ensure you're not providing services outside their tier.</p>
+            </div>
+          ` : ''}
+          <p style="margin-top: 30px;">
+            <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://ramirezaccountingny.com'}/admin/clients" 
+               style="display: inline-block; background-color: #1e40af; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
+              View Client in Admin Portal
+            </a>
+          </p>
+          <p style="color: #6b7280; font-size: 12px; margin-top: 30px;">
+            This is an automated notification from your subscription management system.
+          </p>
+        </div>
+      `,
+    })
+    return { success: true }
+  } catch (error) {
+    console.error('Error sending admin subscription change email:', error)
     return { success: false, error }
   }
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
-import { Plus, Copy, Check, Trash2, Clock, CheckCircle, XCircle, Mail, Send } from 'lucide-react'
+import { Plus, Copy, Check, Trash2, Clock, CheckCircle, XCircle, Mail, Send, Upload, FileText, X, Eye } from 'lucide-react'
 import { PRICING_PLANS, PlanId } from '@/lib/stripe'
 
 interface InviteCode {
@@ -12,6 +12,7 @@ interface InviteCode {
   client_name: string | null
   notes: string | null
   recommended_plan: string | null
+  engagement_letter_path: string | null
   used: boolean
   used_at: string | null
   expires_at: string
@@ -31,6 +32,9 @@ export default function InviteCodesPage() {
     expires_days: 7,
     recommended_plan: '' as PlanId | '',
   })
+  const [engagementLetter, setEngagementLetter] = useState<File | null>(null)
+  const [uploadingLetter, setUploadingLetter] = useState(false)
+  const [dragActive, setDragActive] = useState(false)
 
   const supabase = createClient()
 
@@ -61,13 +65,20 @@ export default function InviteCodesPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       
+      const formDataToSend = new FormData()
+      formDataToSend.append('client_name', formData.client_name)
+      formDataToSend.append('email', formData.email)
+      formDataToSend.append('notes', formData.notes)
+      formDataToSend.append('expires_days', formData.expires_days.toString())
+      formDataToSend.append('recommended_plan', formData.recommended_plan)
+      formDataToSend.append('created_by', user?.id || '')
+      if (engagementLetter) {
+        formDataToSend.append('engagement_letter', engagementLetter)
+      }
+      
       const response = await fetch('/api/invite-codes/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          created_by: user?.id,
-        }),
+        body: formDataToSend,
       })
 
       const result = await response.json()
@@ -76,6 +87,7 @@ export default function InviteCodesPage() {
       setCodes([result.invite_code, ...codes])
       setShowForm(false)
       setFormData({ client_name: '', email: '', notes: '', expires_days: 7, recommended_plan: '' })
+      setEngagementLetter(null)
       
       // Show feedback about email sending
       if (formData.email) {
@@ -94,6 +106,42 @@ export default function InviteCodesPage() {
       alert(err.message || 'Failed to create invite code')
     } finally {
       setCreating(false)
+    }
+  }
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true)
+    } else if (e.type === 'dragleave') {
+      setDragActive(false)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0]
+      if (file.type === 'application/pdf') {
+        setEngagementLetter(file)
+      } else {
+        alert('Please upload a PDF file')
+      }
+    }
+  }
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      if (file.type === 'application/pdf') {
+        setEngagementLetter(file)
+      } else {
+        alert('Please upload a PDF file')
+      }
     }
   }
 
@@ -253,6 +301,80 @@ export default function InviteCodesPage() {
                   <option value={30}>30 days</option>
                 </select>
               </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Engagement Letter (PDF)
+              </label>
+              <div
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                  dragActive
+                    ? 'border-primary-500 bg-primary-50'
+                    : engagementLetter
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-gray-300 bg-gray-50 hover:border-gray-400'
+                }`}
+              >
+                {engagementLetter ? (
+                  <div className="flex items-center justify-center space-x-3">
+                    <FileText className="h-8 w-8 text-green-600" />
+                    <div className="text-left flex-1">
+                      <p className="font-medium text-gray-900">{engagementLetter.name}</p>
+                      <p className="text-sm text-gray-500">
+                        {(engagementLetter.size / 1024).toFixed(2)} KB
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const url = URL.createObjectURL(engagementLetter)
+                          window.open(url, '_blank')
+                          // Clean up the object URL after a delay
+                          setTimeout(() => URL.revokeObjectURL(url), 100)
+                        }}
+                        className="px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium flex items-center gap-1"
+                        title="View PDF"
+                      >
+                        <Eye className="h-4 w-4" />
+                        View
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEngagementLetter(null)}
+                        className="px-3 py-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg"
+                        title="Remove file"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+                    <p className="text-sm text-gray-600 mb-2">
+                      Drag and drop your engagement letter PDF here, or click to browse
+                    </p>
+                    <label className="inline-block bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 cursor-pointer text-sm font-medium">
+                      Choose File
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                      />
+                    </label>
+                    <p className="text-xs text-gray-500 mt-2">PDF files only</p>
+                  </>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                The engagement letter will be attached to the invite email
+              </p>
             </div>
             <div className="flex space-x-3">
               <button

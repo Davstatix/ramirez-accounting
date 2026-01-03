@@ -29,6 +29,7 @@ interface RequiredDocument {
 }
 
 const DOCUMENT_TYPES: Record<string, { label: string; description: string }> = {
+  engagement_letter: { label: 'Signed Engagement Letter', description: 'Please sign and upload the engagement letter that was sent to you via email' },
   tax_id_ein: { label: 'Tax ID (EIN)', description: 'Employer Identification Number for your business' },
   tax_id_ssn: { label: 'Tax ID (SSN)', description: 'Social Security Number (if sole proprietor)' },
   bank_statement: { label: 'Bank Statement', description: 'Most recent bank statement' },
@@ -185,6 +186,18 @@ export default function DocumentsPage() {
         .eq('document_type', documentType)
 
       if (updateError) throw updateError
+
+      // Send email notification to admin
+      if (clientId) {
+        fetch('/api/email/document-uploaded', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientId,
+            documentName: file.name,
+          }),
+        }).catch(err => console.error('Failed to send document upload email:', err))
+      }
 
       await loadData()
     } catch (error: any) {
@@ -469,7 +482,7 @@ export default function DocumentsPage() {
         <div>
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
             <p className="text-sm text-blue-800">
-              <strong>Other Documents:</strong> Upload monthly statements, receipts, invoices, payroll documents, or any other financial documents your accountant needs.
+              <strong>Other Documents:</strong> Upload monthly statements, receipts, invoices, or any other financial documents your accountant needs.
             </p>
           </div>
           {documents.filter(d => d.document_category !== 'onboarding').length === 0 ? (
@@ -511,6 +524,19 @@ export default function DocumentsPage() {
                           .single()
 
                         if (docError) throw docError
+
+                        // Send email notification to admin
+                        if (clientId) {
+                          fetch('/api/email/document-uploaded', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              clientId,
+                              documentName: file.name,
+                            }),
+                          }).catch(err => console.error('Failed to send document upload email:', err))
+                        }
+
                         await loadData()
                       } catch (error: any) {
                         console.error('Error uploading document:', error)

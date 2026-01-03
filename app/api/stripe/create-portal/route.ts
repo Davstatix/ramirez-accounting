@@ -29,10 +29,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No subscription found' }, { status: 404 })
     }
 
+    // Auto-detect localhost for development
+    const baseUrl = process.env.NODE_ENV === 'development' 
+      ? 'http://localhost:3000'
+      : (process.env.NEXT_PUBLIC_APP_URL || 'https://ramirezaccountingny.com')
+
     // Create Stripe billing portal session
+    // IMPORTANT: Portal configuration must be set in Stripe Dashboard:
+    // Settings > Billing > Customer Portal > Subscriptions
+    // - DISABLE "Allow customers to switch plans" (users can only cancel)
+    // - All upgrades/downgrades must go through admin
+    // 
+    // We track all subscription changes via webhooks and send admin notifications
     const session = await stripe.billingPortal.sessions.create({
       customer: client.stripe_customer_id,
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/client/settings`,
+      return_url: `${baseUrl}/client/settings`,
+      // Note: Portal features are configured in Stripe Dashboard, not here
+      // This API only creates the session - plan switching must be disabled in Dashboard
     })
 
     return NextResponse.json({ url: session.url })

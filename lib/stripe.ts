@@ -2,6 +2,18 @@
 // This file exports PRICING_PLANS for client use and stripe instance for server use
 
 export const PRICING_PLANS = {
+  test: {
+    name: 'Test Plan',
+    price: 100, // $1 in cents (for testing only)
+    description: 'Test plan for Stripe payment testing',
+    features: [
+      'Test subscription only',
+      'For development and testing purposes',
+      'Not for production use',
+    ],
+    bestFor: 'Testing payment flows',
+    isTest: true,
+  },
   starter: {
     name: 'Starter',
     price: 17500, // $175 in cents

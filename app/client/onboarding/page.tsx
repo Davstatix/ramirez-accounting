@@ -20,6 +20,7 @@ import {
   Zap,
   TrendingUp,
   Star,
+  AlertCircle,
 } from 'lucide-react'
 import Link from 'next/link'
 import { PRICING_PLANS, PlanId } from '@/lib/stripe'
@@ -47,6 +48,12 @@ interface DocumentType {
 }
 
 const DOCUMENT_TYPES: DocumentType[] = [
+  {
+    type: 'engagement_letter',
+    label: 'Signed Engagement Letter',
+    description: 'Please sign and upload the engagement letter that was sent to you via email',
+    required: true,
+  },
   {
     type: 'tax_id_ein',
     label: 'Tax ID (EIN)',
@@ -109,6 +116,7 @@ export default function OnboardingPage() {
     const urlParams = new URLSearchParams(window.location.search)
     const subscription = urlParams.get('subscription')
     const step = urlParams.get('step')
+    const error = urlParams.get('error')
     
     if (subscription === 'success' && step === '4') {
       setCurrentStep(4)
@@ -116,8 +124,18 @@ export default function OnboardingPage() {
       window.history.replaceState({}, '', '/client/onboarding')
     } else if (subscription === 'cancelled' && step === '3') {
       setCurrentStep(3)
-      setErrorMessage('Payment was cancelled. Please select a plan to continue.')
-      setTimeout(() => setErrorMessage(null), 5000)
+      if (error) {
+        setErrorMessage(`Payment error: ${decodeURIComponent(error)}. Please try again with correct card information.`)
+      } else {
+        setErrorMessage('Payment was cancelled. Please select a plan and try again.')
+      }
+      setTimeout(() => setErrorMessage(null), 8000)
+      window.history.replaceState({}, '', '/client/onboarding')
+    } else if (error) {
+      // Handle any other payment errors
+      setCurrentStep(3)
+      setErrorMessage(`Payment error: ${decodeURIComponent(error)}. Please check your card information and try again.`)
+      setTimeout(() => setErrorMessage(null), 8000)
       window.history.replaceState({}, '', '/client/onboarding')
     }
   }, [])
@@ -136,10 +154,10 @@ export default function OnboardingPage() {
         return
       }
 
-      // Get client
+      // Get client with subscription status
       const { data: client, error: clientError } = await supabase
         .from('clients')
-        .select('id, onboarding_status, user_id')
+        .select('id, onboarding_status, user_id, subscription_status, subscription_plan, stripe_subscription_id')
         .eq('user_id', user.id)
         .single()
 
@@ -163,8 +181,11 @@ export default function OnboardingPage() {
         return
       }
 
+      // Note: We allow users to navigate through onboarding even if they have a subscription
+      // We only block creating a NEW subscription at the payment step (step 3)
+
       // Load required documents with document details
-      const { data: docs } = await supabase
+      const { data: docs, error: docsError } = await supabase
         .from('required_documents')
         .select(`
           *,
@@ -177,23 +198,90 @@ export default function OnboardingPage() {
         `)
         .eq('client_id', client.id)
 
+      if (docsError) {
+        console.error('Error loading required documents:', docsError)
+      }
+
       if (docs && docs.length > 0) {
-        // Check if we have the correct 4 document types
-        const expectedTypes = ['tax_id_ein', 'tax_id_ssn', 'bank_statement', 'business_license']
+        // Check if we have the correct 5 document types
+        const expectedTypes = ['engagement_letter', 'tax_id_ein', 'tax_id_ssn', 'bank_statement', 'business_license']
         const existingTypes = docs.map((d: any) => d.document_type)
         const hasAllTypes = expectedTypes.every(t => existingTypes.includes(t))
         const hasOldTypes = existingTypes.some((t: string) => ['w9_form', 'voided_check'].includes(t))
         
-        if (!hasAllTypes || hasOldTypes) {
-          // Fix outdated required_documents - delete old and create new
-          await supabase
-            .from('required_documents')
-            .delete()
-            .eq('client_id', client.id)
+        console.log('Document check:', {
+          existingTypes,
+          expectedTypes,
+          hasAllTypes,
+          hasOldTypes,
+          count: docs.length,
+          expectedCount: expectedTypes.length
+        })
+        
+        if (!hasAllTypes || hasOldTypes || docs.length !== expectedTypes.length) {
+          console.log('Fixing required documents - missing types, has old types, or wrong count')
           
-          await initializeRequiredDocuments(client.id)
+          try {
+            // Preserve uploaded documents before deleting
+            const uploadedDocsMap: Record<string, { document_id: string; document: any }> = {}
+            docs.forEach((d: any) => {
+              if (d.document_id && d.document) {
+                uploadedDocsMap[d.document_type] = {
+                  document_id: d.document_id,
+                  document: d.document
+                }
+              }
+            })
+            
+            console.log('Preserving uploaded documents:', Object.keys(uploadedDocsMap))
+            
+            // Only add missing documents instead of deleting all
+            const missingTypes = expectedTypes.filter(t => !existingTypes.includes(t))
+            console.log('Missing document types:', missingTypes)
+            
+            if (missingTypes.length > 0) {
+              // Insert only missing documents
+              const missingDocs = missingTypes.map(type => ({
+                client_id: client.id,
+                document_type: type,
+                is_required: true,
+                status: 'pending',
+              }))
+              
+              const { data: insertedDocs, error: insertError } = await supabase
+                .from('required_documents')
+                .insert(missingDocs)
+                .select()
+              
+              if (insertError) {
+                console.error('Error inserting missing documents:', insertError)
+                // If insert fails due to constraint or RLS, just continue - user can manually add
+              } else {
+                console.log('Successfully inserted missing documents:', insertedDocs?.length)
+              }
+            }
+            
+            // If we have old types, delete them
+            if (hasOldTypes) {
+              const oldTypes = existingTypes.filter((t: string) => ['w9_form', 'voided_check'].includes(t))
+              if (oldTypes.length > 0) {
+                const { error: deleteOldError } = await supabase
+                  .from('required_documents')
+                  .delete()
+                  .eq('client_id', client.id)
+                  .in('document_type', oldTypes)
+                
+                if (deleteOldError) {
+                  console.error('Error deleting old document types:', deleteOldError)
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error fixing documents:', error)
+          }
           
-          const { data: newDocs } = await supabase
+          // Reload with document details after fix attempt
+          const { data: finalDocs, error: finalError } = await supabase
             .from('required_documents')
             .select(`
               *,
@@ -205,21 +293,40 @@ export default function OnboardingPage() {
               )
             `)
             .eq('client_id', client.id)
-          if (newDocs) {
-            setRequiredDocs(newDocs)
+          
+          if (finalError) {
+            console.error('Error loading final documents:', finalError)
+            // If reload fails, just use what we have
+            setRequiredDocs(docs)
+          } else if (finalDocs) {
+            console.log('Fixed documents, new count:', finalDocs.length, 'types:', finalDocs.map((d: any) => d.document_type))
+            setRequiredDocs(finalDocs)
+          } else {
+            setRequiredDocs(docs)
           }
         } else {
+          console.log('Documents are correct, setting docs:', docs.length)
           setRequiredDocs(docs)
         }
       } else {
         // Initialize required documents if they don't exist
+        console.log('No documents found, initializing...')
         await initializeRequiredDocuments(client.id)
         // Reload after initialization
         const { data: newDocs } = await supabase
           .from('required_documents')
-          .select('*')
+          .select(`
+            *,
+            document:documents!document_id (
+              id,
+              name,
+              file_path,
+              created_at
+            )
+          `)
           .eq('client_id', client.id)
         if (newDocs) {
+          console.log('Initialized documents, count:', newDocs.length)
           setRequiredDocs(newDocs)
         }
       }
@@ -238,12 +345,20 @@ export default function OnboardingPage() {
       status: 'pending',
     }))
 
-    const { data } = await supabase
+    console.log('Initializing required documents:', docsToCreate)
+
+    const { data, error } = await supabase
       .from('required_documents')
       .insert(docsToCreate)
       .select()
 
+    if (error) {
+      console.error('Error initializing required documents:', error)
+      throw error
+    }
+
     if (data) {
+      console.log('Successfully initialized documents:', data.length)
       setRequiredDocs(data)
     }
   }
@@ -301,23 +416,57 @@ export default function OnboardingPage() {
 
       console.log('Document record created:', document?.id)
 
-      // Update required document
-      const { error: updateError } = await supabase
+      // Check if required_document exists for this type
+      const { data: existingReqDoc, error: checkError } = await supabase
         .from('required_documents')
-        .update({
-          document_id: document.id,
-          status: 'uploaded',
-          updated_at: new Date().toISOString(),
-        })
+        .select('id')
         .eq('client_id', clientId)
         .eq('document_type', documentType)
+        .maybeSingle()
 
-      if (updateError) {
-        console.error('Required document update error:', updateError)
-        throw new Error(`Update failed: ${updateError.message}`)
+      if (checkError) {
+        console.error('Error checking required document:', checkError)
       }
 
-      console.log('Required document updated successfully')
+      if (existingReqDoc) {
+        // Update existing required document
+        const { error: updateError } = await supabase
+          .from('required_documents')
+          .update({
+            document_id: document.id,
+            status: 'uploaded',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingReqDoc.id)
+
+        if (updateError) {
+          console.error('Required document update error:', updateError)
+          throw new Error(`Update failed: ${updateError.message}`)
+        }
+
+        console.log('Required document updated successfully')
+      } else {
+        // Create required document if it doesn't exist
+        console.log('Required document does not exist, creating it...')
+        const docTypeConfig = DOCUMENT_TYPES.find(dt => dt.type === documentType)
+        const { error: insertError } = await supabase
+          .from('required_documents')
+          .insert({
+            client_id: clientId,
+            document_type: documentType,
+            document_id: document.id,
+            is_required: docTypeConfig?.required ?? true,
+            status: 'uploaded',
+            updated_at: new Date().toISOString(),
+          })
+
+        if (insertError) {
+          console.error('Required document insert error:', insertError)
+          throw new Error(`Failed to create required document: ${insertError.message}`)
+        }
+
+        console.log('Required document created successfully')
+      }
 
       // Retry mechanism - sometimes database needs a moment to commit
       let reqDocs = null
@@ -643,7 +792,24 @@ export default function OnboardingPage() {
       }
 
       // Notify admin of completed onboarding
-      const planName = selectedPlan ? selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1) : 'Unknown'
+      // Get plan name from database (subscription_plan) or fallback to selectedPlan from state
+      const { data: clientData } = await supabase
+        .from('clients')
+        .select('subscription_plan')
+        .eq('id', clientId)
+        .single()
+      
+      let planName = 'Unknown'
+      if (clientData?.subscription_plan) {
+        // Get plan name from PRICING_PLANS
+        const plan = PRICING_PLANS[clientData.subscription_plan as PlanId]
+        planName = plan ? plan.name : clientData.subscription_plan
+      } else if (selectedPlan) {
+        // Fallback to selectedPlan from state
+        const plan = PRICING_PLANS[selectedPlan as PlanId]
+        planName = plan ? plan.name : selectedPlan.charAt(0).toUpperCase() + selectedPlan.slice(1)
+      }
+      
       fetch('/api/email/onboarding-complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -788,13 +954,24 @@ export default function OnboardingPage() {
           )}
 
           {currentStep === 3 && (
-            <PlanSelectionStep
-              selectedPlan={selectedPlan}
-              setSelectedPlan={setSelectedPlan}
-              clientId={clientId}
-              processingPayment={processingPayment}
-              setProcessingPayment={setProcessingPayment}
-            />
+            <>
+              {errorMessage && (
+                <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-semibold text-red-900 mb-1">Payment Error</h4>
+                    <p className="text-sm text-red-700">{errorMessage}</p>
+                  </div>
+                </div>
+              )}
+              <PlanSelectionStep
+                selectedPlan={selectedPlan}
+                setSelectedPlan={setSelectedPlan}
+                clientId={clientId}
+                processingPayment={processingPayment}
+                setProcessingPayment={setProcessingPayment}
+              />
+            </>
           )}
 
           {currentStep === 4 && (
@@ -868,6 +1045,24 @@ export default function OnboardingPage() {
                     return
                   }
                   
+                  // Check if client already has an active subscription before creating checkout
+                  // Load current subscription status
+                  const { data: currentClient } = await supabase
+                    .from('clients')
+                    .select('subscription_status, stripe_subscription_id')
+                    .eq('id', clientId)
+                    .single()
+                  
+                  if (currentClient?.subscription_status === 'active' && currentClient?.stripe_subscription_id) {
+                    setErrorMessage('You already have an active subscription. You can manage it in Settings after completing onboarding.')
+                    setTimeout(() => setErrorMessage(null), 8000)
+                    setProcessingPayment(false)
+                    // Allow them to proceed to step 4 (review) even with existing subscription
+                    // They just can't create a duplicate subscription
+                    setCurrentStep(4)
+                    return
+                  }
+                  
                   // Redirect to Stripe checkout
                   setProcessingPayment(true)
                   try {
@@ -880,6 +1075,15 @@ export default function OnboardingPage() {
                     const data = await response.json()
                     
                     if (!response.ok) {
+                      // If they already have a subscription, show error but allow continuing
+                      if (data.hasActiveSubscription) {
+                        setErrorMessage('You already have an active subscription. You can manage it in Settings after completing onboarding.')
+                        setTimeout(() => setErrorMessage(null), 8000)
+                        setProcessingPayment(false)
+                        // Allow them to proceed to step 4 (review) even with existing subscription
+                        setCurrentStep(4)
+                        return
+                      }
                       throw new Error(data.error || 'Failed to create checkout session')
                     }
                     
@@ -938,11 +1142,36 @@ function DocumentsStep({
   onReplace: (type: string, file: File) => void
   uploading: string | null
 }) {
+  const [dragActive, setDragActive] = useState<string | null>(null)
   const requiredUploaded = requiredDocs.filter(
     (doc) => doc.is_required && (doc.status === 'uploaded' || doc.status === 'verified')
   )
+  // Always use 5 as the expected total (engagement_letter, tax_id_ein, tax_id_ssn, bank_statement, business_license)
+  // This ensures the count is always correct even if database is missing a document
+  const requiredTotalCount = 5
   const requiredTotal = requiredDocs.filter((doc) => doc.is_required)
-  const progress = requiredTotal.length > 0 ? (requiredUploaded.length / requiredTotal.length) * 100 : 0
+  const progress = requiredTotalCount > 0 ? (requiredUploaded.length / requiredTotalCount) * 100 : 0
+
+  const handleDrag = (e: React.DragEvent, documentType: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(documentType)
+    } else if (e.type === 'dragleave') {
+      setDragActive(null)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent, documentType: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(null)
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0]
+      onUpload(documentType, file)
+    }
+  }
 
   return (
     <div>
@@ -960,18 +1189,23 @@ function DocumentsStep({
       </div>
       <div className="flex justify-between text-sm text-gray-600 mb-6">
         <span className="font-medium">
-          {requiredUploaded.length} of {requiredTotal.length} required documents uploaded
+          {requiredUploaded.length} of {requiredTotalCount} required documents uploaded
         </span>
         <span className="font-semibold text-primary-600">{Math.round(progress)}%</span>
       </div>
 
       <div className="space-y-3">
-        {DOCUMENT_TYPES.map((docType) => {
-          const doc = requiredDocs.find((d) => d.document_type === docType.type)
-          const status = doc?.status || 'pending'
-          const isUploaded = (status === 'uploaded' || status === 'verified') && !!doc?.document
-          const isUploading = uploading === docType.type
-          const document = doc?.document
+        {DOCUMENT_TYPES.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <p>Loading document types...</p>
+          </div>
+        ) : (
+          DOCUMENT_TYPES.map((docType) => {
+            const doc = requiredDocs.find((d) => d.document_type === docType.type)
+            const status = doc?.status || 'pending'
+            const isUploaded = (status === 'uploaded' || status === 'verified') && !!doc?.document
+            const isUploading = uploading === docType.type
+            const document = doc?.document
 
           return (
             <div
@@ -1021,8 +1255,14 @@ function DocumentsStep({
                           className={`relative flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-all duration-200 ${
                             isUploading
                               ? 'border-primary-400 bg-primary-50'
+                              : dragActive === docType.type
+                              ? 'border-primary-500 bg-primary-100'
                               : 'border-gray-300 bg-gray-50 hover:border-primary-400 hover:bg-primary-50/30'
                           }`}
+                          onDragEnter={(e) => handleDrag(e, docType.type)}
+                          onDragLeave={(e) => handleDrag(e, docType.type)}
+                          onDragOver={(e) => handleDrag(e, docType.type)}
+                          onDrop={(e) => handleDrop(e, docType.type)}
                         >
                           <input
                             type="file"
@@ -1101,7 +1341,8 @@ function DocumentsStep({
               </div>
             </div>
           )
-        })}
+        })
+        )}
       </div>
     </div>
   )
@@ -1233,6 +1474,7 @@ function PlanSelectionStep({
         {plans.map(([planId, plan]) => {
           const isSelected = selectedPlan === planId
           const isPopular = (plan as any).isPopular || planId === 'growth'
+          const isTest = (plan as any).isTest
           
           return (
             <div
@@ -1240,8 +1482,12 @@ function PlanSelectionStep({
               onClick={() => !processingPayment && setSelectedPlan(planId)}
               className={`relative rounded-2xl border-2 p-6 cursor-pointer transition-all duration-200 ${
                 isSelected
-                  ? 'border-primary-500 bg-primary-50 shadow-lg scale-[1.02]'
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'
+                  ? isTest 
+                    ? 'border-yellow-500 bg-yellow-50 shadow-lg scale-[1.02]'
+                    : 'border-primary-500 bg-primary-50 shadow-lg scale-[1.02]'
+                  : isTest
+                    ? 'border-yellow-300 bg-yellow-50/50 hover:border-yellow-400 hover:shadow-md'
+                    : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'
               } ${processingPayment ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {isPopular && (
@@ -1249,6 +1495,13 @@ function PlanSelectionStep({
                   <span className="bg-primary-600 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center">
                     <Star className="h-3 w-3 mr-1 fill-current" />
                     Most Popular
+                  </span>
+                </div>
+              )}
+              {isTest && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <span className="bg-yellow-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+                    TEST ONLY
                   </span>
                 </div>
               )}

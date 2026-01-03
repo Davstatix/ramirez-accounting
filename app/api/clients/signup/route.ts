@@ -90,13 +90,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Initialize required documents for onboarding (all 4 are required)
-    const requiredDocs = [
-      { document_type: 'tax_id_ein', is_required: true },
-      { document_type: 'tax_id_ssn', is_required: true },
-      { document_type: 'bank_statement', is_required: true },
-      { document_type: 'business_license', is_required: true },
-    ]
+    // Initialize required documents for onboarding (all 5 are required)
+        const requiredDocs = [
+          { document_type: 'engagement_letter', is_required: true },
+          { document_type: 'tax_id_ein', is_required: true },
+          { document_type: 'tax_id_ssn', is_required: true },
+          { document_type: 'bank_statement', is_required: true },
+          { document_type: 'business_license', is_required: true },
+        ]
 
     await supabase.from('required_documents').insert(
       requiredDocs.map((doc) => ({

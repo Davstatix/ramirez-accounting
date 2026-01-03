@@ -24,11 +24,50 @@ function generateCode(): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { email, client_name, notes, expires_days = 7, created_by, recommended_plan } = body
-
     // Create Supabase client at runtime
     const supabase = createAdminClient()
+
+    // Parse form data
+    const formData = await request.formData()
+    const email = formData.get('email') as string | null
+    const client_name = formData.get('client_name') as string | null
+    const notes = formData.get('notes') as string | null
+    const expires_days = parseInt(formData.get('expires_days') as string) || 7
+    const created_by = formData.get('created_by') as string | null
+    const recommended_plan = formData.get('recommended_plan') as string | null
+    const engagementLetterFile = formData.get('engagement_letter') as File | null
+
+    // Upload engagement letter if provided
+    let engagementLetterPath: string | null = null
+    if (engagementLetterFile && engagementLetterFile.size > 0) {
+      try {
+        const fileExt = engagementLetterFile.name.split('.').pop() || 'pdf'
+        const fileName = `engagement-letters/${Date.now()}-${crypto.randomBytes(8).toString('hex')}.${fileExt}`
+        
+        // Convert File to ArrayBuffer
+        const arrayBuffer = await engagementLetterFile.arrayBuffer()
+        const buffer = Buffer.from(arrayBuffer)
+
+        // Upload to Supabase Storage
+        const { error: uploadError } = await supabase.storage
+          .from('documents')
+          .upload(fileName, buffer, {
+            contentType: 'application/pdf',
+            upsert: false,
+          })
+
+        if (uploadError) {
+          console.error('Error uploading engagement letter:', uploadError)
+          throw new Error(`Failed to upload engagement letter: ${uploadError.message}`)
+        }
+
+        engagementLetterPath = fileName
+        console.log('✅ Engagement letter uploaded:', engagementLetterPath)
+      } catch (uploadErr: any) {
+        console.error('Error uploading engagement letter:', uploadErr)
+        throw new Error(`Failed to upload engagement letter: ${uploadErr.message}`)
+      }
+    }
 
     // Generate unique code
     let code = generateCode()
@@ -58,6 +97,7 @@ export async function POST(request: NextRequest) {
         client_name: client_name || null,
         notes: notes || null,
         recommended_plan: recommended_plan || null,
+        engagement_letter_path: engagementLetterPath,
         expires_at: expires_at.toISOString(),
         created_by: created_by || null,
       })
@@ -82,7 +122,8 @@ export async function POST(request: NextRequest) {
           client_name || email.split('@')[0] || 'there',
           code,
           expires_at,
-          recommendedPlan
+          recommendedPlan,
+          engagementLetterPath ? { path: engagementLetterPath, name: engagementLetterFile?.name || 'engagement-letter.pdf' } : undefined
         )
         
         if (emailResult.success) {

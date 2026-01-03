@@ -15,22 +15,32 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get recommended plan from invite code if invite_code_id is provided
+    // Get recommended plan and engagement letter from invite code if invite_code_id is provided
     let recommendedPlan = null
+    let engagementLetter: { path: string; name: string } | null = null
     if (invite_code_id) {
       try {
         const supabase = createAdminClient()
         const { data: inviteCode } = await supabase
           .from('invite_codes')
-          .select('recommended_plan')
+          .select('recommended_plan, engagement_letter_path')
           .eq('id', invite_code_id)
           .single()
         
         if (inviteCode?.recommended_plan && PRICING_PLANS[inviteCode.recommended_plan as PlanId]) {
           recommendedPlan = PRICING_PLANS[inviteCode.recommended_plan as PlanId]
         }
+        
+        if (inviteCode?.engagement_letter_path) {
+          // Extract filename from path
+          const fileName = inviteCode.engagement_letter_path.split('/').pop() || 'engagement-letter.pdf'
+          engagementLetter = {
+            path: inviteCode.engagement_letter_path,
+            name: fileName,
+          }
+        }
       } catch (err) {
-        console.warn('Could not fetch recommended plan:', err)
+        console.warn('Could not fetch invite code details:', err)
       }
     }
 
@@ -40,7 +50,8 @@ export async function POST(request: NextRequest) {
       client_name || 'there',
       code,
       new Date(expires_at),
-      recommendedPlan
+      recommendedPlan,
+      engagementLetter
     )
 
     if (!result.success) {

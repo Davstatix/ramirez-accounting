@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
-import { MessageSquare, Send, CheckCircle, Clock, AlertCircle } from 'lucide-react'
+import { MessageSquare, Send, CheckCircle, Clock, AlertCircle, Plus, X, Filter } from 'lucide-react'
 
 interface Message {
     id: string
@@ -26,6 +26,12 @@ interface Message {
     }
 }
 
+interface Client {
+    id: string
+    name: string
+    company_name: string | null
+}
+
 export default function AdminMessagesPage() {
     const [threads, setThreads] = useState<Record<string, Message[]>>({})
     const [loading, setLoading] = useState(true)
@@ -33,10 +39,19 @@ export default function AdminMessagesPage() {
     const [replyMessage, setReplyMessage] = useState('')
     const [sending, setSending] = useState(false)
     const [statusFilter, setStatusFilter] = useState<string>('all')
+    const [clientFilter, setClientFilter] = useState<string>('')
+    const [showNewMessage, setShowNewMessage] = useState(false)
+    const [clients, setClients] = useState<Client[]>([])
+    const [newMessage, setNewMessage] = useState({
+        client_id: '',
+        subject: '',
+        message: '',
+    })
     const supabase = createClient()
     const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
     useEffect(() => {
+        loadClients()
         loadMessages()
         
         // Check for thread parameter in URL
@@ -45,7 +60,21 @@ export default function AdminMessagesPage() {
         if (threadId) {
             setSelectedThread(threadId)
         }
-    }, [statusFilter])
+    }, [statusFilter, clientFilter])
+
+    const loadClients = async () => {
+        try {
+            const { data: clientsData, error } = await supabase
+                .from('clients')
+                .select('id, name, company_name')
+                .order('name')
+            
+            if (error) throw error
+            if (clientsData) setClients(clientsData)
+        } catch (error) {
+            console.error('Error loading clients:', error)
+        }
+    }
 
     // Mark messages as read when thread is selected
     useEffect(() => {
@@ -192,6 +221,48 @@ export default function AdminMessagesPage() {
         }
     }
 
+    const handleSendNewMessage = async () => {
+        if (!newMessage.client_id || !newMessage.subject.trim() || !newMessage.message.trim() || !currentUserId) {
+            alert('Please fill in all fields')
+            return
+        }
+
+        setSending(true)
+        try {
+            const { error } = await supabase.from('messages').insert({
+                client_id: newMessage.client_id,
+                sender_id: currentUserId,
+                subject: newMessage.subject,
+                message: newMessage.message,
+                status: 'open',
+                read: false,
+            })
+
+            if (error) throw error
+
+            // Send email notification to client
+            fetch('/api/email/message-sent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    clientId: newMessage.client_id,
+                    subject: newMessage.subject,
+                    message: newMessage.message,
+                    senderType: 'admin',
+                }),
+            }).catch(err => console.error('Failed to send email:', err))
+
+            setNewMessage({ client_id: '', subject: '', message: '' })
+            setShowNewMessage(false)
+            loadMessages()
+        } catch (error) {
+            console.error('Error sending new message:', error)
+            alert('Failed to send message')
+        } finally {
+            setSending(false)
+        }
+    }
+
     const handleSendReply = async (threadId: string) => {
         if (!replyMessage.trim() || !currentUserId) return
 
@@ -312,9 +383,16 @@ export default function AdminMessagesPage() {
     }
 
     const threadList = Object.entries(threads)
-    const filteredThreads = statusFilter === 'all' 
+    let filteredThreads = statusFilter === 'all' 
         ? threadList 
         : threadList.filter(([_, messages]) => messages[0].status === statusFilter)
+    
+    // Apply client filter
+    if (clientFilter) {
+        filteredThreads = filteredThreads.filter(([_, messages]) => 
+            messages[0].client_id === clientFilter
+        )
+    }
     
     const currentThread = selectedThread ? threads[selectedThread] : null
     const unreadCount = threadList.reduce((sum, [_, msgs]) => 
@@ -329,22 +407,53 @@ export default function AdminMessagesPage() {
             <div className="w-80 bg-white rounded-lg shadow overflow-hidden flex flex-col">
                 <div className="p-4 border-b">
                     <div className="mb-4">
-                        <h1 className="text-xl font-bold text-gray-900 mb-1">Messages</h1>
+                        <div className="flex justify-between items-center mb-1">
+                            <h1 className="text-xl font-bold text-gray-900">Messages</h1>
+                            <button
+                                onClick={() => setShowNewMessage(true)}
+                                className="bg-primary-600 text-white px-3 py-1.5 rounded-lg hover:bg-primary-700 text-sm flex items-center gap-1"
+                            >
+                                <Plus className="h-4 w-4" />
+                                New
+                            </button>
+                        </div>
                         <p className="text-sm text-gray-600">
                             {unreadCount} unread • {openCount} open {urgentCount > 0 && `• ${urgentCount} urgent`}
                         </p>
                     </div>
-                    <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-gray-900 text-sm"
-                    >
-                        <option value="all">All Messages</option>
-                        <option value="open">Open</option>
-                        <option value="in_progress">In Progress</option>
-                        <option value="resolved">Resolved</option>
-                        <option value="closed">Closed</option>
-                    </select>
+                    <div className="space-y-2">
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-gray-900 text-sm"
+                        >
+                            <option value="all">All Messages</option>
+                            <option value="open">Open</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="closed">Closed</option>
+                        </select>
+                        <select
+                            value={clientFilter}
+                            onChange={(e) => setClientFilter(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-gray-900 text-sm"
+                        >
+                            <option value="">All Clients</option>
+                            {clients.map((client) => (
+                                <option key={client.id} value={client.id}>
+                                    {client.company_name || client.name}
+                                </option>
+                            ))}
+                        </select>
+                        {(clientFilter) && (
+                            <button
+                                onClick={() => setClientFilter('')}
+                                className="w-full px-3 py-1.5 text-xs text-gray-600 hover:text-gray-800 underline text-left"
+                            >
+                                Clear Client Filter
+                            </button>
+                        )}
+                    </div>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto">
@@ -403,7 +512,84 @@ export default function AdminMessagesPage() {
 
             {/* Message Thread View */}
             <div className="flex-1 bg-white rounded-lg shadow flex flex-col">
-                {currentThread ? (
+                {showNewMessage ? (
+                    <div className="p-6 h-full flex flex-col">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-semibold text-gray-900">New Message</h2>
+                            <button
+                                onClick={() => {
+                                    setShowNewMessage(false)
+                                    setNewMessage({ client_id: '', subject: '', message: '' })
+                                }}
+                                className="text-gray-500 hover:text-gray-700"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+                        <div className="flex-1 flex flex-col space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Client *
+                                </label>
+                                <select
+                                    value={newMessage.client_id}
+                                    onChange={(e) => setNewMessage({ ...newMessage, client_id: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-gray-900"
+                                >
+                                    <option value="">Select a client</option>
+                                    {clients.map((client) => (
+                                        <option key={client.id} value={client.id}>
+                                            {client.company_name || client.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Subject *
+                                </label>
+                                <input
+                                    type="text"
+                                    value={newMessage.subject}
+                                    onChange={(e) => setNewMessage({ ...newMessage, subject: e.target.value })}
+                                    placeholder="Enter message subject"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-gray-900"
+                                />
+                            </div>
+                            <div className="flex-1">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Message *
+                                </label>
+                                <textarea
+                                    value={newMessage.message}
+                                    onChange={(e) => setNewMessage({ ...newMessage, message: e.target.value })}
+                                    placeholder="Type your message..."
+                                    rows={10}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-gray-900"
+                                />
+                            </div>
+                            <div className="flex justify-end gap-3 pt-4">
+                                <button
+                                    onClick={() => {
+                                        setShowNewMessage(false)
+                                        setNewMessage({ client_id: '', subject: '', message: '' })
+                                    }}
+                                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 font-medium"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSendNewMessage}
+                                    disabled={sending || !newMessage.client_id || !newMessage.subject.trim() || !newMessage.message.trim()}
+                                    className="bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    <Send className="h-5 w-5" />
+                                    {sending ? 'Sending...' : 'Send Message'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ) : currentThread ? (
                     <>
                         {/* Thread Header */}
                         <div className="p-4 border-b">

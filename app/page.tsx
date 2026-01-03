@@ -17,6 +17,7 @@ export default function Home() {
             <div className="hidden md:flex space-x-8">
               <Link href="#services" className="text-gray-700 hover:text-primary-600">Services</Link>
               <Link href="#pricing" className="text-gray-700 hover:text-primary-600">Pricing</Link>
+              <Link href="/demo" className="text-gray-700 hover:text-primary-600">Demo</Link>
               <Link href="#security" className="text-gray-700 hover:text-primary-600">Security</Link>
               <Link href="#about" className="text-gray-700 hover:text-primary-600">About</Link>
               <Link href="#contact" className="text-gray-700 hover:text-primary-600">Contact</Link>
@@ -51,6 +52,13 @@ export default function Home() {
                 <Calendar className="h-5 w-5" />
                 Book a Free Discovery Call
                 <ArrowRight className="h-5 w-5" />
+              </Link>
+              <Link
+                href="/demo"
+                className="bg-primary-500 text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-primary-400 transition-all border-2 border-white/20 shadow-lg inline-flex items-center justify-center gap-2"
+              >
+                <Eye className="h-5 w-5" />
+                Try Interactive Demo
               </Link>
               <Link
                 href="#services"

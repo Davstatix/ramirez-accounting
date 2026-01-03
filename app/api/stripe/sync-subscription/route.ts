@@ -36,22 +36,116 @@ export async function POST(request: NextRequest) {
 
     let customerId = client.stripe_customer_id
 
-    // If no customer ID, try to find by email
-    if (!customerId && client.email) {
-      const customers = await stripe.customers.list({
-        email: client.email,
-        limit: 1,
-      })
-      
-      if (customers.data.length > 0) {
-        customerId = customers.data[0].id
+    // Get auth email (the actual login email, which might be different from client.email)
+    const { data: { user } } = await supabase.auth.getUser()
+    const authEmail = user?.email
+    const emailsToSearch = new Set<string>()
+    
+    if (client.email) emailsToSearch.add(client.email.toLowerCase())
+    if (authEmail) emailsToSearch.add(authEmail.toLowerCase())
+    
+    const emailsArray = Array.from(emailsToSearch)
+    console.log('🔍 Searching for Stripe customer with emails:', emailsArray)
+
+    // If no customer ID, try to find by all possible emails
+    if (!customerId) {
+      // Search all emails
+      for (const email of emailsArray) {
+        console.log(`🔍 Searching for Stripe customer by email: ${email}`)
+        const customers = await stripe.customers.list({
+          email: email,
+          limit: 10,
+        })
+        
+        console.log(`📧 Found ${customers.data.length} customer(s) with email ${email}`)
+        
+        if (customers.data.length > 0) {
+          // Check each customer for active subscriptions
+          for (const customer of customers.data) {
+            const subscriptions = await stripe.subscriptions.list({
+              customer: customer.id,
+              status: 'active',
+              limit: 1,
+            })
+            
+            if (subscriptions.data.length > 0) {
+              customerId = customer.id
+              console.log(`✅ Found customer with active subscription: ${customerId} (email: ${email})`)
+              break
+            }
+          }
+          
+          // If no active subscription found, use the most recent customer anyway
+          if (!customerId) {
+            customerId = customers.data[0].id
+            console.log(`✅ Found customer (no active subscription yet): ${customerId} (email: ${email})`)
+          }
+          
+          if (customerId) break
+        }
+      }
+    }
+
+    // Last resort: search all recent customers (last 20) and check if any have subscriptions
+    // This helps when payment email differs from account email
+    if (!customerId) {
+      console.log('🔍 Last resort: Searching recent Stripe customers with active subscriptions...')
+      try {
+        const recentCustomers = await stripe.customers.list({
+          limit: 20, // Check more recent customers
+        })
+        
+        console.log(`📋 Checking ${recentCustomers.data.length} recent customers...`)
+        
+        // Check each customer for active subscriptions
+        for (const recentCustomer of recentCustomers.data) {
+          const customerSubs = await stripe.subscriptions.list({
+            customer: recentCustomer.id,
+            status: 'active',
+            limit: 1,
+          })
+          
+          if (customerSubs.data.length > 0) {
+            const customerEmail = recentCustomer.email?.toLowerCase()
+            const clientEmail = client.email?.toLowerCase()
+            const authEmailLower = authEmail?.toLowerCase()
+            
+            // Check multiple matching criteria
+            const emailMatches = customerEmail && (
+              customerEmail === clientEmail || 
+              customerEmail === authEmailLower ||
+              customerEmail?.includes(clientEmail?.split('@')[0] || '') || // Partial match (johanr2505 vs johan)
+              clientEmail?.includes(customerEmail?.split('@')[0] || '')
+            )
+            
+            const metadataMatches = recentCustomer.metadata?.client_id === clientId
+            
+            if (emailMatches || metadataMatches) {
+              customerId = recentCustomer.id
+              console.log(`✅ Found customer by ${metadataMatches ? 'metadata' : 'email'} match: ${customerId}`)
+              console.log(`   Customer email: ${recentCustomer.email}`)
+              console.log(`   Client email: ${client.email}`)
+              console.log(`   Auth email: ${authEmail}`)
+              break
+            }
+          }
+        }
+      } catch (searchError) {
+        console.error('Error in last resort customer search:', searchError)
       }
     }
 
     if (!customerId) {
+      console.error('❌ No Stripe customer found for:', {
+        clientEmail: client.email,
+        clientId: client.id,
+        hasStripeCustomerId: !!client.stripe_customer_id,
+      })
       return NextResponse.json({ 
-        error: 'No Stripe customer found. Please complete checkout first.',
-        hasCustomer: false 
+        error: 'No Stripe customer found. The webhook may not have fired. Please contact support with your payment confirmation email.',
+        hasCustomer: false,
+        searchedEmails: [client.email],
+        suggestion: 'Check your Stripe Dashboard to find the customer ID, then contact support to manually link it.',
       }, { status: 404 })
     }
 
@@ -87,21 +181,48 @@ export async function POST(request: NextRequest) {
       const priceId = subscription.items.data[0]?.price?.id
       const priceAmount = subscription.items.data[0]?.price?.unit_amount
 
+      console.log('⚠️ Plan ID not in subscription metadata, attempting to infer from price:', {
+        priceId,
+        priceAmount,
+      })
+
       if (priceAmount) {
         // Match by price amount
         for (const [id, plan] of Object.entries(PRICING_PLANS)) {
           if (plan.price === priceAmount) {
             planId = id as PlanId
+            console.log(`✅ Matched plan by price: ${planId} (${plan.name})`)
             break
           }
+        }
+      }
+      
+      // If still no plan, try to get it from checkout session metadata
+      if (!planId && subscription.metadata?.checkout_session_id) {
+        try {
+          const checkoutSession = await stripe.checkout.sessions.retrieve(
+            subscription.metadata.checkout_session_id
+          )
+          if (checkoutSession.metadata?.plan_id) {
+            planId = checkoutSession.metadata.plan_id as PlanId
+            console.log(`✅ Found plan ID from checkout session metadata: ${planId}`)
+            // Update subscription metadata for future reference
+            await stripe.subscriptions.update(subscription.id, {
+              metadata: { ...subscription.metadata, plan_id: planId },
+            })
+          }
+        } catch (err) {
+          console.error('Error retrieving checkout session:', err)
         }
       }
     }
 
     if (!planId) {
       return NextResponse.json({ 
-        error: 'Could not determine plan from subscription',
-        subscription: subscription.id 
+        error: 'Could not determine plan from subscription. Please contact support.',
+        subscription: subscription.id,
+        priceAmount: subscription.items.data[0]?.price?.unit_amount,
+        availablePlans: Object.keys(PRICING_PLANS),
       }, { status: 400 })
     }
 

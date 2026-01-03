@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
-import { FileText, CheckCircle, XCircle, Eye } from 'lucide-react'
+import { FileText, CheckCircle, XCircle, Eye, Filter } from 'lucide-react'
 
 interface Document {
   id: string
@@ -18,14 +18,57 @@ interface Document {
   }
 }
 
+interface Client {
+  id: string
+  name: string
+  company_name: string | null
+}
+
 export default function AdminDocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([])
+  const [allDocuments, setAllDocuments] = useState<Document[]>([])
+  const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
+  const [filterClient, setFilterClient] = useState<string>('')
+  const [filterType, setFilterType] = useState<string>('')
   const supabase = createClient()
 
   useEffect(() => {
+    loadClients()
     loadDocuments()
   }, [])
+
+  useEffect(() => {
+    filterDocuments()
+  }, [filterClient, filterType, allDocuments])
+
+  const loadClients = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, name, company_name')
+        .order('name')
+
+      if (error) throw error
+      setClients(data || [])
+    } catch (error) {
+      console.error('Error loading clients:', error)
+    }
+  }
+
+  const filterDocuments = () => {
+    let filtered = [...allDocuments]
+
+    if (filterClient) {
+      filtered = filtered.filter(doc => doc.client_id === filterClient)
+    }
+
+    if (filterType) {
+      filtered = filtered.filter(doc => doc.file_type === filterType)
+    }
+
+    setDocuments(filtered)
+  }
 
   const loadDocuments = async () => {
     try {
@@ -47,6 +90,7 @@ export default function AdminDocumentsPage() {
         client: doc.clients,
       }))
 
+      setAllDocuments(transformedDocuments)
       setDocuments(transformedDocuments)
     } catch (error) {
       console.error('Error loading documents:', error)
@@ -198,9 +242,52 @@ export default function AdminDocumentsPage() {
     return <div className="text-center py-12">Loading documents...</div>
   }
 
+  // Get unique document types for filter
+  const documentTypes = Array.from(new Set(allDocuments.map(doc => doc.file_type))).sort()
+
   return (
     <div>
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Documents</h1>
+
+      {/* Filter Controls */}
+      <div className="bg-white rounded-lg shadow p-4 mb-6 flex items-center space-x-4">
+        <Filter className="h-5 w-5 text-gray-500" />
+        <select
+          value={filterClient}
+          onChange={(e) => setFilterClient(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-gray-900 text-sm"
+        >
+          <option value="">All Clients</option>
+          {clients.map(client => (
+            <option key={client.id} value={client.id}>
+              {client.company_name || client.name}
+            </option>
+          ))}
+        </select>
+        <select
+          value={filterType}
+          onChange={(e) => setFilterType(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white text-gray-900 text-sm"
+        >
+          <option value="">All Types</option>
+          {documentTypes.map(type => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
+        </select>
+        {(filterClient || filterType) && (
+          <button
+            onClick={() => {
+              setFilterClient('')
+              setFilterType('')
+            }}
+            className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 underline"
+          >
+            Clear Filters
+          </button>
+        )}
+      </div>
 
       {documents.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-12 text-center">
