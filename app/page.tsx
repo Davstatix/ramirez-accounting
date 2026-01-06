@@ -8,7 +8,7 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       {/* Navigation */}
-      <nav className="bg-white shadow-sm">
+      <nav className="bg-white shadow-sm" style={{ position: 'relative' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
@@ -480,19 +480,13 @@ export default function Home() {
               <div className="relative inline-block mb-6">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full blur-xl opacity-50"></div>
                 <div className="relative w-48 h-48 rounded-full overflow-hidden border-4 border-white shadow-2xl bg-gray-200">
-                  {/* Placeholder for Johan's photo - replace with actual image */}
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-100 to-primary-200">
-                    <Users className="h-24 w-24 text-primary-600" />
-                  </div>
-                  {/* Uncomment and use this when you have the actual photo:
                   <Image
-                    src="/images/johan.jpg"
+                    src="/images/johan-headshot.jpeg"
                     alt="Johan Ramirez"
                     fill
                     className="object-cover"
                     sizes="(max-width: 768px) 192px, 192px"
                   />
-                  */}
                 </div>
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-2">Johan Ramirez</h3>
@@ -515,19 +509,13 @@ export default function Home() {
               <div className="relative inline-block mb-6">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full blur-xl opacity-50"></div>
                 <div className="relative w-48 h-48 rounded-full overflow-hidden border-4 border-white shadow-2xl bg-gray-200">
-                  {/* Placeholder for David's photo - replace with actual image */}
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-100 to-primary-200">
-                    <Users className="h-24 w-24 text-primary-600" />
-                  </div>
-                  {/* Uncomment and use this when you have the actual photo:
                   <Image
-                    src="/images/david.jpg"
+                    src="/images/david-headshot.jpeg"
                     alt="David Ramirez"
                     fill
                     className="object-cover"
                     sizes="(max-width: 768px) 192px, 192px"
                   />
-                  */}
                 </div>
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-2">David Ramirez</h3>

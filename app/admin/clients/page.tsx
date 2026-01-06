@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
-import { Plus, Search, Trash2, Edit, FileText } from 'lucide-react'
+import { Plus, Search, Trash2, Edit, FileText, Archive } from 'lucide-react'
 
 interface Client {
   id: string
@@ -61,7 +61,7 @@ export default function ClientsPage() {
     }
   }
 
-  const handleDelete = async (clientId: string, clientName: string) => {
+  const handleArchive = async (clientId: string, clientName: string) => {
     if (!confirm(`Are you sure you want to archive ${clientName}? Their data will be archived for 7 years per legal requirements, then automatically deleted. Their login account will be removed immediately.`)) {
       return
     }
@@ -112,6 +112,56 @@ export default function ClientsPage() {
     } catch (error: any) {
       console.error('Error archiving client:', error)
       alert(`Failed to archive client: ${error.message}`)
+    }
+  }
+
+  const handleDelete = async (clientId: string, clientName: string) => {
+    if (!confirm(`⚠️ WARNING: Are you sure you want to PERMANENTLY DELETE ${clientName}?\n\nThis will:\n- Delete all their data (documents, messages, reports, etc.)\n- Delete their login account\n- This action CANNOT be undone!\n\nClick OK to continue, then type "DELETE" in the next prompt.`)) {
+      return
+    }
+
+    const confirmation = prompt(`⚠️ FINAL CONFIRMATION\n\nType "DELETE" (all caps) to permanently delete ${clientName}:\n\nThis action cannot be undone!`)
+    if (confirmation !== 'DELETE') {
+      alert('Deletion cancelled. You must type "DELETE" exactly to confirm.')
+      return
+    }
+
+    try {
+      // Get the user_id first
+      const { data: client } = await supabase
+        .from('clients')
+        .select('user_id')
+        .eq('id', clientId)
+        .single()
+
+      if (!client) {
+        alert('Client not found')
+        return
+      }
+
+      // Delete the client and auth user (no archiving)
+      const deleteResponse = await fetch('/api/clients/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          clientId: clientId,
+          userId: client.user_id 
+        }),
+      })
+
+      if (!deleteResponse.ok) {
+        const errorData = await deleteResponse.json()
+        throw new Error(errorData.error || 'Failed to delete client')
+      }
+
+      // Reload clients list
+      loadClients()
+      alert(`${clientName} has been permanently deleted.`)
+    } catch (error: any) {
+      console.error('Error deleting client:', error)
+      alert(`Failed to delete client: ${error.message}`)
     }
   }
 
@@ -208,12 +258,20 @@ export default function ClientsPage() {
                           View
                         </Link>
                         <button
-                          onClick={() => handleDelete(client.id, client.name)}
-                          className="text-red-600 hover:text-red-900 flex items-center"
+                          onClick={() => handleArchive(client.id, client.name)}
+                          className="text-orange-600 hover:text-orange-900 flex items-center"
                           title="Archive client (data retained for 7 years per legal requirements)"
                         >
-                          <Trash2 className="h-4 w-4 mr-1" />
+                          <Archive className="h-4 w-4 mr-1" />
                           Archive
+                        </button>
+                        <button
+                          onClick={() => handleDelete(client.id, client.name)}
+                          className="text-red-600 hover:text-red-900 flex items-center"
+                          title="Permanently delete client (cannot be undone)"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Delete
                         </button>
                       </div>
                     </td>

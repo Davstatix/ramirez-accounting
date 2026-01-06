@@ -91,12 +91,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Initialize required documents for onboarding
-    // Note: EIN and SSN are not both required - client must upload either one
+    // Initialize required documents for onboarding (all 5 are required)
         const requiredDocs = [
           { document_type: 'engagement_letter', is_required: true },
-          { document_type: 'tax_id_ein', is_required: false }, // Either EIN or SSN is required, not both
-          { document_type: 'tax_id_ssn', is_required: false }, // Either EIN or SSN is required, not both
+          { document_type: 'tax_id_ein', is_required: true },
+          { document_type: 'tax_id_ssn', is_required: true },
           { document_type: 'bank_statement', is_required: true },
           { document_type: 'business_license', is_required: true },
         ]

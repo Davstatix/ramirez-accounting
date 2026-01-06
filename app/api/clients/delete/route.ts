@@ -28,20 +28,32 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { userId } = body
-
-    if (!userId) {
-      return NextResponse.json({ error: 'User ID is required' }, { status: 400 })
-    }
+    const { userId, clientId } = body
 
     // Use service role client for admin operations
     const serviceClient = createAdminClient()
 
-    // Delete the auth user
-    const { error: deleteError } = await serviceClient.auth.admin.deleteUser(userId)
+    // If clientId is provided, delete the client first (which cascades to related data)
+    if (clientId) {
+      const { error: clientDeleteError } = await serviceClient
+        .from('clients')
+        .delete()
+        .eq('id', clientId)
 
-    if (deleteError) {
-      return NextResponse.json({ error: deleteError.message }, { status: 400 })
+      if (clientDeleteError) {
+        return NextResponse.json({ 
+          error: 'Failed to delete client: ' + clientDeleteError.message 
+        }, { status: 400 })
+      }
+    }
+
+    // Delete the auth user (this will also cascade delete the profile if CASCADE is set up)
+    if (userId) {
+      const { error: deleteError } = await serviceClient.auth.admin.deleteUser(userId)
+
+      if (deleteError) {
+        return NextResponse.json({ error: deleteError.message }, { status: 400 })
+      }
     }
 
     return NextResponse.json({ success: true })

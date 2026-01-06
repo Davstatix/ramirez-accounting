@@ -33,10 +33,9 @@ interface Client {
   phone: string | null
   company_name: string | null
   created_at: string
-  quickbooks_info: any | null
+  quickbooks_info: string | null
   subscription_plan: string | null
   subscription_status: string | null
-  trial_end: string | null
 }
 
 interface Document {
@@ -125,13 +124,9 @@ export default function ClientDetailPage() {
   // Reload when URL changes (e.g., returning from import with refresh param)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
-    if (urlParams.get('refresh') || urlParams.get('qb_connected')) {
+    if (urlParams.get('refresh')) {
       loadClientData()
       // Clean up the URL
-      window.history.replaceState({}, '', window.location.pathname)
-    }
-    if (urlParams.get('qb_error')) {
-      setError(`QuickBooks connection failed: ${urlParams.get('qb_error')}`)
       window.history.replaceState({}, '', window.location.pathname)
     }
   }, [])
@@ -485,48 +480,24 @@ export default function ClientDetailPage() {
                     ${(PRICING_PLANS[client.subscription_plan as PlanId].price / 100).toLocaleString()}/mo
                   </p>
                 </div>
-                {client.subscription_status !== 'trialing' && (
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                    client.subscription_status === 'active' 
-                      ? 'bg-green-100 text-green-800' 
-                      : client.subscription_status === 'canceling'
-                      ? 'bg-orange-100 text-orange-800'
-                      : client.subscription_status === 'past_due'
-                      ? 'bg-yellow-100 text-yellow-800'
-                      : client.subscription_status === 'cancelled'
-                      ? 'bg-red-100 text-red-800'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {client.subscription_status === 'active' && <CheckCircle className="h-4 w-4 mr-1" />}
-                    {client.subscription_status === 'canceling' && <AlertCircle className="h-4 w-4 mr-1" />}
-                    {client.subscription_status === 'past_due' && <AlertCircle className="h-4 w-4 mr-1" />}
-                    {client.subscription_status === 'cancelled' && <XCircle className="h-4 w-4 mr-1" />}
-                    {client.subscription_status === 'canceling' ? 'Canceling (end of period)' : client.subscription_status || 'Unknown'}
-                  </span>
-                )}
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                  client.subscription_status === 'active' 
+                    ? 'bg-green-100 text-green-800' 
+                    : client.subscription_status === 'canceling'
+                    ? 'bg-orange-100 text-orange-800'
+                    : client.subscription_status === 'past_due'
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : client.subscription_status === 'cancelled'
+                    ? 'bg-red-100 text-red-800'
+                    : 'bg-gray-100 text-gray-800'
+                }`}>
+                  {client.subscription_status === 'active' && <CheckCircle className="h-4 w-4 mr-1" />}
+                  {client.subscription_status === 'canceling' && <AlertCircle className="h-4 w-4 mr-1" />}
+                  {client.subscription_status === 'past_due' && <AlertCircle className="h-4 w-4 mr-1" />}
+                  {client.subscription_status === 'cancelled' && <XCircle className="h-4 w-4 mr-1" />}
+                  {client.subscription_status === 'canceling' ? 'Canceling (end of period)' : client.subscription_status || 'Unknown'}
+                </span>
               </div>
-              {client.subscription_status === 'trialing' && client.trial_end && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Calendar className="h-4 w-4 text-yellow-600" />
-                    <p className="text-sm font-semibold text-yellow-900">Free Trial</p>
-                  </div>
-                  <p className="text-sm text-yellow-700">
-                    Trial ends: <span className="font-medium">{new Date(client.trial_end).toLocaleDateString('en-US', { 
-                      month: 'long', 
-                      day: 'numeric', 
-                      year: 'numeric' 
-                    })}</span>
-                  </p>
-                  {new Date(client.trial_end) < new Date() ? (
-                    <p className="text-xs text-red-600 font-medium mt-1">⚠️ Trial has expired - payment required</p>
-                  ) : (
-                    <p className="text-xs text-yellow-600 mt-1">
-                      {Math.ceil((new Date(client.trial_end).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} days remaining
-                    </p>
-                  )}
-                </div>
-              )}
               <div>
                 <p className="text-sm font-medium text-gray-500 mb-2">Plan Features:</p>
                 <ul className="space-y-1">

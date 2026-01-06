@@ -333,21 +333,10 @@ export default function DocumentsPage() {
     return <div className="text-center py-12">Loading documents...</div>
   }
 
-  // Count required documents (EIN and SSN count as one requirement - either/or)
   const requiredUploaded = requiredDocs.filter(
     (doc) => doc.is_required && (doc.status === 'uploaded' || doc.status === 'verified')
   )
-  
-  // Check if at least one of EIN or SSN is uploaded
-  const einDoc = requiredDocs.find(d => d.document_type === 'tax_id_ein')
-  const ssnDoc = requiredDocs.find(d => d.document_type === 'tax_id_ssn')
-  const hasTaxId = (einDoc && (einDoc.status === 'uploaded' || einDoc.status === 'verified')) ||
-                   (ssnDoc && (ssnDoc.status === 'uploaded' || ssnDoc.status === 'verified'))
-  
-  // Total required: engagement_letter, tax_id (EIN or SSN), bank_statement, business_license = 4
-  const requiredTotalCount = 4
-  // Count uploaded: required docs + tax ID if either is uploaded
-  const uploadedCount = requiredUploaded.length + (hasTaxId ? 1 : 0)
+  const requiredTotal = requiredDocs.filter((doc) => doc.is_required)
 
   return (
     <div>
@@ -367,9 +356,11 @@ export default function DocumentsPage() {
             }`}
           >
             Required Documents
-            <span className="ml-2 px-2 py-0.5 text-xs bg-primary-100 text-primary-700 rounded-full">
-              {uploadedCount}/{requiredTotalCount}
-            </span>
+            {requiredTotal.length > 0 && (
+              <span className="ml-2 px-2 py-0.5 text-xs bg-primary-100 text-primary-700 rounded-full">
+                {requiredUploaded.length}/{requiredTotal.length}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab('other')}

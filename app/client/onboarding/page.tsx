@@ -57,14 +57,14 @@ const DOCUMENT_TYPES: DocumentType[] = [
   {
     type: 'tax_id_ein',
     label: 'Tax ID (EIN)',
-    description: 'Employer Identification Number for your business (required if you have an EIN)',
-    required: false, // Either EIN or SSN is required, not both
+    description: 'Employer Identification Number for your business',
+    required: true,
   },
   {
     type: 'tax_id_ssn',
     label: 'Tax ID (SSN)',
-    description: 'Social Security Number (required if sole proprietor, no EIN)',
-    required: false, // Either EIN or SSN is required, not both
+    description: 'Social Security Number (if sole proprietor)',
+    required: true,
   },
   {
     type: 'bank_statement',
@@ -748,28 +748,13 @@ export default function OnboardingPage() {
 
     try {
       // Check if all required documents are uploaded
-      // EIN and SSN count as one requirement (either/or)
       const requiredUploaded = requiredDocs.filter(
         (doc) => doc.is_required && (doc.status === 'uploaded' || doc.status === 'verified')
       )
-      
-      // Check if at least one of EIN or SSN is uploaded
-      const einDoc = requiredDocs.find(d => d.document_type === 'tax_id_ein')
-      const ssnDoc = requiredDocs.find(d => d.document_type === 'tax_id_ssn')
-      const hasTaxId = (einDoc && (einDoc.status === 'uploaded' || einDoc.status === 'verified')) ||
-                       (ssnDoc && (ssnDoc.status === 'uploaded' || ssnDoc.status === 'verified'))
-      
-      // Total required: engagement_letter, tax_id (EIN or SSN), bank_statement, business_license = 4
-      const requiredTotalCount = 4
-      const uploadedCount = requiredUploaded.length + (hasTaxId ? 1 : 0)
+      const requiredTotal = requiredDocs.filter((doc) => doc.is_required)
 
-      if (uploadedCount < requiredTotalCount) {
-        const missing = requiredTotalCount - uploadedCount
-        if (!hasTaxId) {
-          alert(`Please upload all required documents. You need to upload either a Tax ID (EIN) or Tax ID (SSN), plus ${missing - 1} other required document(s).`)
-        } else {
-          alert(`Please upload all required documents. You have uploaded ${uploadedCount} of ${requiredTotalCount} required documents.`)
-        }
+      if (requiredUploaded.length < requiredTotal.length) {
+        alert(`Please upload all required documents. You have uploaded ${requiredUploaded.length} of ${requiredTotal.length} required documents.`)
         return
       }
 
@@ -1052,31 +1037,16 @@ export default function OnboardingPage() {
                 // Validate before moving forward
                 if (currentStep === 1) {
                   // Check if all required documents are uploaded before moving to step 2
-                  // EIN and SSN count as one requirement (either/or)
                   const requiredUploaded = requiredDocs.filter(
                     (doc) => doc.is_required && (doc.status === 'uploaded' || doc.status === 'verified')
                   )
+                  const requiredTotal = requiredDocs.filter((doc) => doc.is_required)
                   
-                  // Check if at least one of EIN or SSN is uploaded
-                  const einDoc = requiredDocs.find(d => d.document_type === 'tax_id_ein')
-                  const ssnDoc = requiredDocs.find(d => d.document_type === 'tax_id_ssn')
-                  const hasTaxId = (einDoc && (einDoc.status === 'uploaded' || einDoc.status === 'verified')) ||
-                                   (ssnDoc && (ssnDoc.status === 'uploaded' || ssnDoc.status === 'verified'))
-                  
-                  // Total required: engagement_letter, tax_id (EIN or SSN), bank_statement, business_license = 4
-                  const requiredTotalCount = 4
-                  const uploadedCount = requiredUploaded.length + (hasTaxId ? 1 : 0)
-                  
-                  if (uploadedCount < requiredTotalCount) {
-                    const missing = requiredTotalCount - uploadedCount
-                    let errorMsg = ''
-                    if (!hasTaxId) {
-                      errorMsg = `Please upload either a Tax ID (EIN) or Tax ID (SSN), plus ${missing - 1} other required document(s) to continue.`
-                    } else {
-                      errorMsg = missing === 1 
-                        ? `Please upload ${missing} more required document to continue.`
-                        : `Please upload ${missing} more required documents to continue.`
-                    }
+                  if (requiredUploaded.length < requiredTotal.length) {
+                    const missing = requiredTotal.length - requiredUploaded.length
+                    const errorMsg = missing === 1 
+                      ? `Please upload ${missing} more required document to continue.`
+                      : `Please upload ${missing} more required documents to continue.`
                     setErrorMessage(errorMsg)
                     setTimeout(() => setErrorMessage(null), 5000)
                     return
@@ -1271,22 +1241,14 @@ function DocumentsStep({
   uploading: string | null
 }) {
   const [dragActive, setDragActive] = useState<string | null>(null)
-  // Count required documents (EIN and SSN count as one requirement - either/or)
   const requiredUploaded = requiredDocs.filter(
     (doc) => doc.is_required && (doc.status === 'uploaded' || doc.status === 'verified')
   )
-  
-  // Check if at least one of EIN or SSN is uploaded
-  const einDoc = requiredDocs.find(d => d.document_type === 'tax_id_ein')
-  const ssnDoc = requiredDocs.find(d => d.document_type === 'tax_id_ssn')
-  const hasTaxId = (einDoc && (einDoc.status === 'uploaded' || einDoc.status === 'verified')) ||
-                   (ssnDoc && (ssnDoc.status === 'uploaded' || ssnDoc.status === 'verified'))
-  
-  // Total required: engagement_letter, tax_id (EIN or SSN), bank_statement, business_license = 4
-  const requiredTotalCount = 4
-  // Count uploaded: required docs + tax ID if either is uploaded
-  const uploadedCount = requiredUploaded.length + (hasTaxId ? 1 : 0)
-  const progress = requiredTotalCount > 0 ? (uploadedCount / requiredTotalCount) * 100 : 0
+  // Always use 5 as the expected total (engagement_letter, tax_id_ein, tax_id_ssn, bank_statement, business_license)
+  // This ensures the count is always correct even if database is missing a document
+  const requiredTotalCount = 5
+  const requiredTotal = requiredDocs.filter((doc) => doc.is_required)
+  const progress = requiredTotalCount > 0 ? (requiredUploaded.length / requiredTotalCount) * 100 : 0
 
   const handleDrag = (e: React.DragEvent, documentType: string) => {
     e.preventDefault()
@@ -1313,7 +1275,7 @@ function DocumentsStep({
     <div>
       <h2 className="text-3xl font-bold text-gray-900 mb-3">Required Documents</h2>
       <p className="text-lg text-gray-600 mb-6">
-        Upload your required documents below. You must upload either a Tax ID (EIN) or Tax ID (SSN), not both.
+        Upload your required documents below. All documents are required to proceed.
       </p>
       
       {/* Progress Bar */}
@@ -1325,7 +1287,7 @@ function DocumentsStep({
       </div>
       <div className="flex justify-between text-sm text-gray-600 mb-6">
         <span className="font-medium">
-          {uploadedCount} of {requiredTotalCount} required documents uploaded
+          {requiredUploaded.length} of {requiredTotalCount} required documents uploaded
         </span>
         <span className="font-semibold text-primary-600">{Math.round(progress)}%</span>
       </div>
@@ -1376,15 +1338,9 @@ function DocumentsStep({
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-gray-900 text-base flex items-center">
                           {docType.label}
-                          {(docType.type === 'tax_id_ein' || docType.type === 'tax_id_ssn') ? (
-                            <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-blue-100 text-blue-700 rounded-full">
-                              Either/Or
-                            </span>
-                          ) : (
-                            <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-700 rounded-full">
-                              Required
-                            </span>
-                          )}
+                          <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-700 rounded-full">
+                            Required
+                          </span>
                         </h3>
                         <p className="text-sm text-gray-500 mt-1">{docType.description}</p>
                       </div>
