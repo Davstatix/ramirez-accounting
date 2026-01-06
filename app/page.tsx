@@ -466,16 +466,53 @@ export default function Home() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <div className="inline-block mb-5">
-              <span className="text-primary-600 font-bold text-lg md:text-xl uppercase tracking-wide">Meet The Team</span>
+              <span className="text-primary-600 font-bold text-lg md:text-xl uppercase tracking-wide">Meet The Founder</span>
             </div>
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">The Brothers Behind Ramirez Accounting</h2>
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">The Professional Behind Ramirez Accounting</h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              A family-owned firm combining accounting expertise with cutting-edge technology
+              Combining bookkeeping expertise with cutting-edge technology to deliver exceptional financial services
             </p>
           </div>
 
+          <div className="flex justify-center">
+            {/* David */}
+            <div className="text-center max-w-2xl">
+              <div className="relative inline-block mb-6">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full blur-xl opacity-50"></div>
+                <div className="relative w-48 h-48 rounded-full overflow-hidden border-4 border-white shadow-2xl bg-gray-200">
+                  <Image
+                    src="/images/david-headshot.jpeg"
+                    alt="David Ramirez"
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 192px, 192px"
+                  />
+                </div>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">David Ramirez</h3>
+              <p className="text-primary-600 font-semibold mb-4">Founder & Bookkeeper</p>
+              <div className="bg-gray-50 rounded-xl p-6 text-left">
+                <p className="text-gray-700 leading-relaxed mb-4">
+                  David is an experienced bookkeeper with a strong foundation in accounting principles and financial management. 
+                  He is currently working toward his <strong>QuickBooks ProAdvisor certification</strong> and will complete his 
+                  <strong> Bachelor&apos;s degree in Mathematics in May</strong>, bringing analytical rigor and precision to every client&apos;s books.
+                </p>
+                <p className="text-gray-700 leading-relaxed mb-4">
+                  With expertise in both bookkeeping and software engineering, David has built our modern, secure platform to make 
+                  financial management seamless and transparent. His technical background enables us to deliver efficient, 
+                  automated solutions that save time, reduce errors, and provide real-time insights into your business finances.
+                </p>
+                <p className="text-gray-700 leading-relaxed">
+                  David&apos;s meticulous attention to detail and commitment to accuracy ensures your books are always 
+                  up-to-date, compliant, and ready to support your business growth. He combines traditional bookkeeping 
+                  expertise with modern technology to give you the clarity and control you need to make informed financial decisions.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Commented out - Johan's section (will uncomment when ready)
           <div className="grid md:grid-cols-2 gap-12 lg:gap-16">
-            {/* Johan */}
             <div className="text-center">
               <div className="relative inline-block mb-6">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full blur-xl opacity-50"></div>
@@ -503,43 +540,14 @@ export default function Home() {
                 </p>
               </div>
             </div>
-
-            {/* David */}
-            <div className="text-center">
-              <div className="relative inline-block mb-6">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full blur-xl opacity-50"></div>
-                <div className="relative w-48 h-48 rounded-full overflow-hidden border-4 border-white shadow-2xl bg-gray-200">
-                  <Image
-                    src="/images/david-headshot.jpeg"
-                    alt="David Ramirez"
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 192px, 192px"
-                  />
-                </div>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">David Ramirez</h3>
-              <p className="text-primary-600 font-semibold mb-4">Software Engineer & Co-Founder</p>
-              <div className="bg-gray-50 rounded-xl p-6 text-left">
-                <p className="text-gray-700 leading-relaxed mb-4">
-                  David is a <strong>software engineer</strong> who has built our modern, secure platform to make 
-                  bookkeeping seamless for both our team and our clients.
-                </p>
-                <p className="text-gray-700 leading-relaxed">
-                  By combining accounting expertise with cutting-edge technology, David ensures that our clients have 
-                  access to real-time financial data through our secure portal. His technical background allows us to 
-                  deliver efficient, automated solutions that save time and reduce errors.
-                </p>
-              </div>
-            </div>
           </div>
+          */}
 
           <div className="mt-16 text-center bg-gradient-to-r from-primary-50 to-primary-100 rounded-2xl p-8">
             <p className="text-lg text-gray-700 leading-relaxed max-w-3xl mx-auto">
-              <strong className="text-gray-900">Together</strong>, we combine Johan&apos;s accounting expertise with David&apos;s 
-              technical innovation to deliver exceptional bookkeeping services. We&apos;re not just number-crunchers—we&apos;re 
-              your partners in financial success, helping you understand your business better and make smarter decisions 
-              that drive growth.
+              At Ramirez Accounting, we&apos;re not just number-crunchers—we&apos;re your partners in financial success. 
+              We help you understand your business better and make smarter decisions that drive growth, all while ensuring 
+              your books are accurate, compliant, and ready to support your goals.
             </p>
           </div>
         </div>
