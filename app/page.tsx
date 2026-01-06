@@ -493,7 +493,7 @@ export default function Home() {
               <p className="text-primary-600 font-semibold mb-4">Founder & Bookkeeper</p>
               <div className="bg-gray-50 rounded-xl p-6 text-left">
                 <p className="text-gray-700 leading-relaxed mb-4">
-                  David is an experienced bookkeeper with a strong foundation in accounting principles and financial management. 
+                  David has a strong foundation in accounting principles and financial management. 
                   He is currently working toward his <strong>QuickBooks ProAdvisor certification</strong> and will complete his 
                   <strong> Bachelor&apos;s degree in Mathematics in May</strong>, bringing analytical rigor and precision to every client&apos;s books.
                 </p>
