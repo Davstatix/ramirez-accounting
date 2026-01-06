@@ -481,7 +481,7 @@ export default function Home() {
                 <div className="absolute inset-0 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full blur-xl opacity-50"></div>
                 <div className="relative w-48 h-48 rounded-full overflow-hidden border-4 border-white shadow-2xl bg-gray-200">
                   <Image
-                    src="/images/johan-headshot.jpeg"
+                    src="/images/johan-headshot.JPEG"
                     alt="Johan Ramirez"
                     fill
                     className="object-cover"
