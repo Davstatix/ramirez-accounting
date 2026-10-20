@@ -1,4 +1,5 @@
 'use client'
+import ArrowIcon from '@/components/ArrowIcon'
 import { useState, type FormEvent } from 'react'
 export default function ContactForm() {
  const [status,setStatus]=useState<'idle'|'sending'|'success'|'error'>('idle')
@@ -12,7 +13,7 @@ export default function ContactForm() {
  <div className="form-row"><label htmlFor="company">Business name <span>(optional)</span><input id="company" name="company" autoComplete="organization" maxLength={200}/></label><label htmlFor="phone">Phone <span>(optional)</span><input id="phone" name="phone" type="tel" autoComplete="tel" maxLength={40}/></label></div>
  <label htmlFor="message">How can we help?<textarea id="message" name="message" required rows={5} maxLength={5000} placeholder="A little about your business and your bookkeeping needs…"/></label>
  <div className="form-trap" aria-hidden="true"><label>Leave this empty<input name="website" tabIndex={-1} autoComplete="off"/></label></div>
- <button className="button" disabled={status==='sending'} type="submit">{status==='sending'?'Sending…':'Send your message'} <span aria-hidden="true">↗</span></button>
+ <button className="button" disabled={status==='sending'} type="submit">{status==='sending'?'Sending…':'Send your message'} <span aria-hidden="true"><ArrowIcon /></span></button>
  <p className="form-status" role="status" aria-live="polite">{status==='success'?'Thank you. Your message has been sent. We’ll follow up by email.':status==='error'?<>Your message couldn’t be sent. Please try again or <a href="mailto:david@ramirezaccountingny.com">email us directly</a>.</> : <>For how we handle your message, read our <a href="/privacy">privacy policy</a>.</>}</p>
  </form>
 }
